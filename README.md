@@ -239,7 +239,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🔄 Changelog
 
-### Version 1.0.0 (2025-11-29)
+### Version 1.0.0
 - Initial release
 - Full campaign lifecycle support
 - MetaMask integration
