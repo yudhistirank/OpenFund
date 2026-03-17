@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
+import { CAMPAIGN_STATUS } from '../constants';
+import { getCampaignStatusLocal } from '../utils/validation';
 import CampaignCard from '../components/CampaignCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
@@ -12,13 +14,13 @@ import {
 } from '@heroicons/react/24/outline';
 
 const HomePage = () => {
-  const { address: _address, isConnected: _isConnected } = useWallet();
+  const { signer, account } = useWallet();
   const { 
     campaigns,
     userContributions,
     isLoading,
     fetchCampaigns
-  } = useContract();
+  } = useContract(signer, account);
   
   const handleRefresh = useCallback(async () => {
     console.log('HomePage: Manual refresh triggered');
@@ -29,13 +31,9 @@ const HomePage = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // Current timestamp (static for now to avoid impure function issues)
-  const NOW_TIMESTAMP = 1735717205; // Static timestamp
-
-  // Filter campaigns based on search term, status, and sort
+  // Filter campaigns based on search, status, and sort
   const filteredAndSortedCampaigns = campaigns
     .filter(campaign => {
-      // For search, we'll use the campaign ID as fallback since metadata is loaded by individual CampaignCard components
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
         return campaign.id.toString().includes(searchLower) || 
@@ -44,16 +42,18 @@ const HomePage = () => {
       return true;
     })
     .filter(campaign => {
-      // Status filter
+      const status = getCampaignStatusLocal(campaign);
       switch (filterStatus) {
         case 'active':
-          return NOW_TIMESTAMP >= campaign.startAt && NOW_TIMESTAMP <= campaign.endAt;
+          return status === CAMPAIGN_STATUS.ACTIVE;
         case 'successful':
-          return BigInt(campaign.pledged) >= BigInt(campaign.goal);
+          return status === CAMPAIGN_STATUS.SUCCESSFUL || status === CAMPAIGN_STATUS.CLAIMED;
         case 'failed':
-          return NOW_TIMESTAMP > campaign.endAt && BigInt(campaign.pledged) < BigInt(campaign.goal);
+          return status === CAMPAIGN_STATUS.FAILED;
         case 'upcoming':
-          return NOW_TIMESTAMP < campaign.startAt;
+          return status === CAMPAIGN_STATUS.UPCOMING;
+        case 'cancelled':
+          return status === CAMPAIGN_STATUS.CANCELLED;
         default:
           return true;
       }
@@ -71,31 +71,33 @@ const HomePage = () => {
         case 'ending-soon':
           return a.endAt - b.endAt;
         case 'most-funded':
-          return BigInt(b.pledged) - BigInt(a.pledged);
+          return Number(BigInt(b.pledged) - BigInt(a.pledged));
         default:
           return 0;
       }
     });
 
-  const featuredCampaigns = campaigns.slice(0, 3);
+  const featuredCampaigns = campaigns
+    .filter(c => getCampaignStatusLocal(c) !== CAMPAIGN_STATUS.CANCELLED)
+    .slice(0, 3);
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="large" text="Loading campaigns..." />
+        <LoadingSpinner size="large" text="Memuat kampanye..." />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Featured Campaigns Section */}
+      {/* Featured Campaigns */}
       {featuredCampaigns.length > 0 && (
         <section className="bg-white border-b border-gray-200 py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-2 mb-8">
               <SparklesIcon className="w-6 h-6 text-crypto-blue" />
-              <h2 className="text-2xl font-bold text-gray-900">Featured Campaigns</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Kampanye Unggulan</h2>
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -117,9 +119,9 @@ const HomePage = () => {
           {/* Header */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Discover Campaigns</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Temukan Kampanye</h1>
               <p className="text-gray-600">
-                Support innovative projects and bring ideas to life
+                Dukung proyek inovatif dan wujudkan ide menjadi kenyataan
               </p>
             </div>
             
@@ -130,13 +132,13 @@ const HomePage = () => {
                 disabled={isLoading}
               >
                 <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                Perbarui
               </button>
               <Link
                 to="/create"
                 className="btn-primary"
               >
-                Create Campaign
+                Buat Kampanye
               </Link>
             </div>
           </div>
@@ -149,52 +151,53 @@ const HomePage = () => {
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search campaigns..."
+                  placeholder="Cari kampanye..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-crypto-blue focus:border-transparent"
                 />
               </div>
 
-              {/* Sort By */}
+              {/* Sort */}
               <div className="relative">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-crypto-blue focus:border-transparent appearance-none"
                 >
-                  <option value="newest">Newest First</option>
-                  <option value="ending-soon">Ending Soon</option>
-                  <option value="most-funded">Most Funded</option>
-                  <option value="goal-reached">Goal Reached</option>
+                  <option value="newest">Terbaru</option>
+                  <option value="ending-soon">Segera Berakhir</option>
+                  <option value="most-funded">Paling Banyak Didanai</option>
+                  <option value="goal-reached">Target Tercapai</option>
                 </select>
               </div>
 
-              {/* Filter Status */}
+              {/* Status Filter */}
               <div className="relative">
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-crypto-blue focus:border-transparent appearance-none"
                 >
-                  <option value="all">All Campaigns</option>
-                  <option value="active">Active</option>
-                  <option value="successful">Successful</option>
-                  <option value="failed">Failed</option>
-                  <option value="upcoming">Upcoming</option>
+                  <option value="all">Semua Kampanye</option>
+                  <option value="active">Aktif</option>
+                  <option value="successful">Berhasil</option>
+                  <option value="failed">Gagal</option>
+                  <option value="upcoming">Akan Datang</option>
+                  <option value="cancelled">Dibatalkan</option>
                 </select>
               </div>
 
-              {/* Results Count */}
+              {/* Result Count */}
               <div className="flex items-center justify-end">
                 <span className="text-sm text-gray-600">
-                  {filteredAndSortedCampaigns.length} campaign{filteredAndSortedCampaigns.length !== 1 ? 's' : ''} found
+                  {filteredAndSortedCampaigns.length} kampanye ditemukan
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Campaign Grid */}
+          {/* Campaign List */}
           {filteredAndSortedCampaigns.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredAndSortedCampaigns.map((campaign) => (
@@ -208,9 +211,9 @@ const HomePage = () => {
           ) : (
             <div className="text-center py-12">
               <FunnelIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada kampanye ditemukan</h3>
               <p className="text-gray-600 mb-4">
-                Try adjusting your search or filter criteria
+                Coba sesuaikan kata kunci pencarian atau kriteria filter Anda
               </p>
               <button
                 onClick={() => {
@@ -220,7 +223,7 @@ const HomePage = () => {
                 }}
                 className="btn-secondary"
               >
-                Clear Filters
+                Hapus Filter
               </button>
             </div>
           )}

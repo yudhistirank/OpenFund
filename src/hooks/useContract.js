@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { CROWD_FUND_ABI, CONTRACT_ADDRESSES, APP_CONSTANTS } from '../constants';
+import { CROWD_FUND_ABI, CONTRACT_ADDRESSES, APP_CONSTANTS, CAMPAIGN_STATUS } from '../constants';
 import { fetchFromIPFS } from '../utils/ipfs';
+import { getCampaignStatusLocal } from '../utils/validation';
 
 export const useContract = (signer, account) => {
   const [contract, setContract] = useState(null);
@@ -30,9 +31,6 @@ export const useContract = (signer, account) => {
         if (chainId === '11155111') {
           contractAddress = CONTRACT_ADDRESSES.ethereum_sepolia;
           console.log('🔍 NETWORK DEBUG: Using Ethereum Sepolia contract:', contractAddress);
-        } else if (chainId === '8453') {
-          contractAddress = CONTRACT_ADDRESSES.base_mainnet;
-          console.log('🔍 NETWORK DEBUG: Using Base Mainnet contract:', contractAddress);
         } else if (chainId === '84532') {
           contractAddress = CONTRACT_ADDRESSES.base_sepolia;
           console.log('🔍 NETWORK DEBUG: Using Base Sepolia contract:', contractAddress);
@@ -42,9 +40,6 @@ export const useContract = (signer, account) => {
         }
         
         console.log('Initializing contract on chain:', chainId, 'Address:', contractAddress);
-        console.log('🔍 CONTRACT DEBUG: Using address', contractAddress, 'for chain', chainId);
-        console.log('🔍 CONTRACT DEBUG: This should be the ACTUAL deployed contract address');
-        console.log('🔍 CONTRACT DEBUG: If this is 0x99146Ca2eBDdB854D93881d1890fC9536612ff25, that\'s the ISSUE!');
         
         const crowdFundContract = new ethers.Contract(
           contractAddress,
@@ -63,6 +58,21 @@ export const useContract = (signer, account) => {
     }
   }, [signer, account]);
 
+  // Format raw campaign data from contract to frontend-friendly object
+  const formatCampaign = (campaign, id) => {
+    return {
+      id: id,
+      creator: campaign.creator,
+      goal: campaign.goal.toString(),
+      pledged: campaign.pledged.toString(),
+      startAt: Number(campaign.startAt),
+      endAt: Number(campaign.endAt),
+      claimed: campaign.claimed,
+      metadata: campaign.metadata,
+      status: Number(campaign.status), // v2: Status enum (0=Upcoming, 1=Active, 2=Successful, 3=Failed, 4=Cancelled, 5=Claimed)
+    };
+  };
+
   // Fetch all campaigns
   const fetchCampaigns = useCallback(async () => {
     if (!contract) {
@@ -75,7 +85,7 @@ export const useContract = (signer, account) => {
       setError(null);
 
       console.log('fetchCampaigns: Starting campaign fetch...');
-      console.log('fetchCampaigns: Contract address:', contract?.address || 'undefined - check contract initialization');
+      console.log('fetchCampaigns: Contract address:', contract?.target || contract?.address || 'undefined');
       
       let totalCampaigns;
       try {
@@ -86,11 +96,8 @@ export const useContract = (signer, account) => {
         console.log('fetchCampaigns: Parsed campaign count:', totalCampaigns);
       } catch (countError) {
         console.error('fetchCampaigns: ERROR calling contract.count():', countError);
-        console.error('fetchCampaigns: This might indicate contract interaction issues');
         throw countError;
       }
-      
-      console.log('fetchCampaigns: Total campaigns found:', totalCampaigns);
       
       if (totalCampaigns === 0) {
         console.log('fetchCampaigns: No campaigns, setting empty array');
@@ -107,17 +114,7 @@ export const useContract = (signer, account) => {
       const campaignData = await Promise.all(campaignPromises);
       
       const formattedCampaigns = campaignData.map((campaign, index) => {
-        const formatted = {
-          id: index + 1,
-          creator: campaign.creator,
-          goal: campaign.goal.toString(),
-          pledged: campaign.pledged.toString(),
-          startAt: Number(campaign.startAt),
-          endAt: Number(campaign.endAt),
-          claimed: campaign.claimed,
-          metadata: campaign.metadata
-        };
-        // Only log first campaign to reduce spam
+        const formatted = formatCampaign(campaign, index + 1);
         if (index === 0) {
           console.log(`fetchCampaigns: Campaign ${index + 1}:`, formatted);
         }
@@ -135,25 +132,18 @@ export const useContract = (signer, account) => {
     }
   }, [contract]);
 
-  // Fetch user's campaigns
+  // Fetch user's campaigns (created by user)
   const fetchUserCampaigns = useCallback(async () => {
     if (!contract || !account) return;
 
     try {
-      setIsLoading(true);
-      const allCampaigns = await fetchCampaigns();
-      if (!allCampaigns) return;
-
       const userCreatedCampaigns = campaigns.filter(
         campaign => campaign.creator.toLowerCase() === account.toLowerCase()
       );
-      
       setUserCampaigns(userCreatedCampaigns);
     } catch (err) {
       console.error('Error fetching user campaigns:', err);
       setError('Failed to fetch user campaigns');
-    } finally {
-      setIsLoading(false);
     }
   }, [contract, account, campaigns]);
 
@@ -192,7 +182,10 @@ export const useContract = (signer, account) => {
 
       const goalWei = ethers.parseEther(goal.toString());
       
-      const tx = await contract.launch(goalWei, startAt, endAt, metadata);
+      // metadata should already have ipfs:// prefix from uploadToIPFS
+      // V2 contract: createCampaign(goal, startAt, endAt, metadata)
+      // If startAt = 0, contract sets startAt = block.timestamp (start immediately)
+      const tx = await contract.createCampaign(goalWei, startAt, endAt, metadata);
       console.log('createCampaign: Transaction sent:', tx.hash);
       
       const receipt = await tx.wait();
@@ -206,7 +199,7 @@ export const useContract = (signer, account) => {
       return receipt;
     } catch (err) {
       console.error('Error creating campaign:', err);
-      const errorMessage = err.message || 'Failed to create campaign';
+      const errorMessage = err.reason || err.message || 'Failed to create campaign';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -226,7 +219,8 @@ export const useContract = (signer, account) => {
 
       const amountWei = ethers.parseEther(amount.toString());
       
-      const tx = await contract.pledge(campaignId, { value: amountWei });
+      // V2 contract: fundCampaign(id) payable
+      const tx = await contract.fundCampaign(campaignId, { value: amountWei });
       const receipt = await tx.wait();
 
       // Refresh campaigns and user contributions
@@ -236,7 +230,7 @@ export const useContract = (signer, account) => {
       return receipt;
     } catch (err) {
       console.error('Error pledging:', err);
-      const errorMessage = err.message || 'Failed to pledge';
+      const errorMessage = err.reason || err.message || 'Failed to pledge';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -256,7 +250,8 @@ export const useContract = (signer, account) => {
 
       const amountWei = ethers.parseEther(amount.toString());
       
-      const tx = await contract.unpledge(campaignId, amountWei);
+      // V2 contract: withdrawPledge(id, amount)
+      const tx = await contract.withdrawPledge(campaignId, amountWei);
       const receipt = await tx.wait();
 
       // Refresh campaigns and user contributions
@@ -266,7 +261,7 @@ export const useContract = (signer, account) => {
       return receipt;
     } catch (err) {
       console.error('Error unpledging:', err);
-      const errorMessage = err.message || 'Failed to unpledge';
+      const errorMessage = err.reason || err.message || 'Failed to unpledge';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -284,7 +279,8 @@ export const useContract = (signer, account) => {
       setIsLoading(true);
       setError(null);
 
-      const tx = await contract.claim(campaignId);
+      // V2 contract: claimFunds(id)
+      const tx = await contract.claimFunds(campaignId);
       const receipt = await tx.wait();
 
       // Refresh campaigns
@@ -293,7 +289,7 @@ export const useContract = (signer, account) => {
       return receipt;
     } catch (err) {
       console.error('Error claiming funds:', err);
-      const errorMessage = err.message || 'Failed to claim funds';
+      const errorMessage = err.reason || err.message || 'Failed to claim funds';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -311,7 +307,8 @@ export const useContract = (signer, account) => {
       setIsLoading(true);
       setError(null);
 
-      const tx = await contract.refund(campaignId);
+      // V2 contract: refundContribution(id)
+      const tx = await contract.refundContribution(campaignId);
       const receipt = await tx.wait();
 
       // Refresh campaigns and user contributions
@@ -321,7 +318,7 @@ export const useContract = (signer, account) => {
       return receipt;
     } catch (err) {
       console.error('Error getting refund:', err);
-      const errorMessage = err.message || 'Failed to get refund';
+      const errorMessage = err.reason || err.message || 'Failed to get refund';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -339,7 +336,8 @@ export const useContract = (signer, account) => {
       setIsLoading(true);
       setError(null);
 
-      const tx = await contract.cancel(campaignId);
+      // V2 contract: cancelCampaign(id)
+      const tx = await contract.cancelCampaign(campaignId);
       const receipt = await tx.wait();
 
       // Refresh campaigns
@@ -348,7 +346,7 @@ export const useContract = (signer, account) => {
       return receipt;
     } catch (err) {
       console.error('Error canceling campaign:', err);
-      const errorMessage = err.message || 'Failed to cancel campaign';
+      const errorMessage = err.reason || err.message || 'Failed to cancel campaign';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -362,16 +360,7 @@ export const useContract = (signer, account) => {
 
     try {
       const campaign = await contract.campaigns(campaignId);
-      return {
-        id: Number(campaignId),
-        creator: campaign.creator,
-        goal: campaign.goal.toString(),
-        pledged: campaign.pledged.toString(),
-        startAt: Number(campaign.startAt),
-        endAt: Number(campaign.endAt),
-        claimed: campaign.claimed,
-        metadata: campaign.metadata
-      };
+      return formatCampaign(campaign, Number(campaignId));
     } catch (err) {
       console.error('Error fetching campaign:', err);
       return null;
@@ -461,8 +450,7 @@ export const useContract = (signer, account) => {
     // Computed values
     totalCampaigns: campaigns.length,
     activeCampaigns: campaigns.filter(c => {
-      const now = Math.floor(Date.now() / 1000);
-      return now >= c.startAt && now <= c.endAt;
+      return getCampaignStatusLocal(c) === CAMPAIGN_STATUS.ACTIVE;
     }).length,
     totalPledged: campaigns.reduce((sum, c) => sum + BigInt(c.pledged), 0n).toString(),
   };

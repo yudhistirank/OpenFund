@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 // Layout Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
 import Landing from './pages/Landing';
@@ -20,19 +21,26 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen flex flex-col bg-gray-50">
-        {/* Navigation */}
+        {/* Navigasi */}
         <Navbar />
         
-        {/* Main Content */}
+        {/* Konten Utama */}
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/campaigns" element={<HomePage />} />
             <Route path="/create" element={<CreateCampaign />} />
             <Route path="/campaign/:id" element={<CampaignDetail />} />
-            <Route path="/dashboard" element={<UserDashboard />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <UserDashboard />
+                </ProtectedRoute>
+              }
+            />
             
-            {/* Catch all route - redirect to campaigns */}
+            {/* Rute default — arahkan ke halaman kampanye */}
             <Route path="*" element={<HomePage />} />
           </Routes>
         </main>
@@ -40,7 +48,7 @@ function App() {
         {/* Footer */}
         <Footer />
         
-        {/* Toast Notifications */}
+        {/* Notifikasi Toast */}
         <Toaster
           position="top-right"
           toastOptions={{

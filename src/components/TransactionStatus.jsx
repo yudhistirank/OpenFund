@@ -10,8 +10,7 @@ const TransactionStatus = ({
   isOpen, 
   onClose, 
   status = 'pending', 
-  title = 'Transaction Pending', 
-  message = 'Please wait while your transaction is being processed.',
+  message = 'Mohon tunggu sementara transaksi Anda sedang diproses.',
   hash,
   onRetry,
   onViewOnExplorer
@@ -26,8 +25,8 @@ const TransactionStatus = ({
           iconColor: 'text-green-500',
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
-          title: 'Transaction Successful!',
-          message: 'Your transaction has been confirmed on the blockchain.'
+          title: 'Transaksi Berhasil!',
+          message: 'Transaksi Anda telah dikonfirmasi di blockchain.'
         };
       case 'error':
         return {
@@ -35,8 +34,8 @@ const TransactionStatus = ({
           iconColor: 'text-red-500',
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
-          title: 'Transaction Failed',
-          message: message || 'Your transaction could not be completed. Please try again.'
+          title: 'Transaksi Gagal',
+          message: message || 'Transaksi Anda tidak dapat diselesaikan. Silakan coba lagi.'
         };
       default:
         return {
@@ -44,8 +43,8 @@ const TransactionStatus = ({
           iconColor: 'text-crypto-blue',
           bgColor: 'bg-crypto-light-blue',
           borderColor: 'border-crypto-blue',
-          title: 'Transaction Pending',
-          message: 'Please wait while your transaction is being processed.'
+          title: 'Transaksi Sedang Diproses',
+          message: 'Mohon tunggu sementara transaksi Anda sedang diproses.'
         };
     }
   };
@@ -56,17 +55,17 @@ const TransactionStatus = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
+        {/* Lapisan latar belakang */}
         <div 
           className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
           onClick={onClose}
         ></div>
 
-        {/* Modal panel */}
-        <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+        {/* Panel modal */}
+        <div className="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-xl">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">
+            <h3 className="text-lg font-semibold leading-6 text-gray-900">
               {statusInfo.title}
             </h3>
             <button
@@ -77,9 +76,9 @@ const TransactionStatus = ({
             </button>
           </div>
 
-          {/* Status Icon and Content */}
+          {/* Ikon Status dan Konten */}
           <div className="flex items-start space-x-4">
-            {/* Icon */}
+            {/* Ikon */}
             <div className={`flex-shrink-0 w-12 h-12 rounded-full ${statusInfo.bgColor} flex items-center justify-center`}>
               <StatusIcon 
                 className={`w-6 h-6 ${statusInfo.iconColor} ${
@@ -88,16 +87,16 @@ const TransactionStatus = ({
               />
             </div>
 
-            {/* Content */}
+            {/* Konten */}
             <div className="flex-1">
               <p className="text-sm text-gray-600 mb-2">
                 {statusInfo.message}
               </p>
               
-              {/* Transaction Hash */}
+              {/* Hash Transaksi */}
               {hash && (
                 <div className="mb-4">
-                  <p className="text-xs text-gray-500 mb-1">Transaction Hash:</p>
+                  <p className="text-xs text-gray-500 mb-1">Hash Transaksi:</p>
                   <div className="flex items-center space-x-2">
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded flex-1 truncate font-mono">
                       {hash}
@@ -105,23 +104,23 @@ const TransactionStatus = ({
                     {onViewOnExplorer && (
                       <button
                         onClick={() => onViewOnExplorer(hash)}
-                        className="text-xs text-crypto-blue hover:text-crypto-blue-dark font-medium"
+                        className="text-xs text-crypto-blue hover:text-crypto-blue-dark font-medium whitespace-nowrap"
                       >
-                        View
+                        Lihat
                       </button>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Actions */}
+              {/* Tombol Aksi */}
               <div className="flex space-x-2">
                 {status === 'error' && onRetry && (
                   <button
                     onClick={onRetry}
                     className="btn-primary text-sm"
                   >
-                    Try Again
+                    Coba Lagi
                   </button>
                 )}
                 
@@ -130,7 +129,7 @@ const TransactionStatus = ({
                     onClick={onClose}
                     className="btn-primary text-sm"
                   >
-                    Done
+                    Selesai
                   </button>
                 )}
                 
@@ -139,14 +138,14 @@ const TransactionStatus = ({
                     onClick={onClose}
                     className="btn-secondary text-sm"
                   >
-                    Close
+                    Tutup
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Loading Animation */}
+          {/* Animasi Loading */}
           {status === 'pending' && (
             <div className="mt-4">
               <div className="w-full bg-gray-200 rounded-full h-2">

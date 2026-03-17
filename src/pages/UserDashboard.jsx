@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
-import { 
-  formatWeiToEth, 
-  formatDate, 
-  formatCurrency, 
-  formatPercentage 
+import { CAMPAIGN_STATUS } from '../constants';
+import {
+  formatWeiToEth,
+  formatDate,
+  formatCurrency,
+  formatPercentage
 } from '../utils/format';
-import { isCampaignActive, isCampaignEnded, isGoalReached } from '../utils/validation';
+import { getCampaignStatusLocal } from '../utils/validation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
-  UserIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
   ClockIcon,
@@ -19,167 +19,91 @@ import {
   XCircleIcon,
   ArrowTrendingUpIcon,
   HeartIcon,
-  GiftIcon
+  GiftIcon,
+  NoSymbolIcon
 } from '@heroicons/react/24/outline';
 
 const UserDashboard = () => {
-  const { address, isConnected } = useWallet();
-  const { 
-    getUserCampaigns, 
-    getUserContributions,
-    getCampaignById
-  } = useContract();
+  const { account, signer } = useWallet();
+  const {
+    campaigns,
+    userCampaigns,
+    userContributions,
+    isLoading,
+  } = useContract(signer, account);
 
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [stats, setStats] = useState({
-    totalCreated: 0,
-    totalContributed: 0,
-    totalAmount: 0,
-    successfulCampaigns: 0,
-    totalRefunds: 0
-  });
-  const [createdCampaigns, setCreatedCampaigns] = useState([]);
-  const [contributions, setContributions] = useState([]);
-  const [activity, setActivity] = useState([]);
 
-  useEffect(() => {
-    if (isConnected && address) {
-      loadUserData();
-    }
-  }, [isConnected, address]);
-
-  const loadUserData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load user's created campaigns
-      const userCampaignIds = await getUserCampaigns(address);
-      const userCampaigns = await Promise.all(
-        userCampaignIds.map(id => getCampaignById(id))
-      );
-      setCreatedCampaigns(userCampaigns);
-
-      // Load user's contributions
-      const contributionData = await getUserContributions(address);
-      setContributions(contributionData);
-
-      // Calculate statistics
-      const totalCreated = userCampaigns.length;
-      const totalContributed = contributionData.length;
-      const totalAmount = contributionData.reduce((sum, contrib) => 
-        sum + parseFloat(formatWeiToEth(contrib.amount)), 0
-      );
-      const successfulCampaigns = userCampaigns.filter(campaign => 
-        isGoalReached(campaign)
-      ).length;
-      const totalRefunds = contributionData.filter(contrib => 
-        contrib.refunded
-      ).length;
-
-      setStats({
-        totalCreated,
-        totalContributed,
-        totalAmount,
-        successfulCampaigns,
-        totalRefunds
-      });
-
-      // Generate activity feed
-      generateActivityFeed(userCampaigns, contributionData);
-      
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    } finally {
-      setLoading(false);
-    }
+  // Compute stats from campaigns and contributions
+  const stats = {
+    totalCreated: userCampaigns.length,
+    totalContributed: Object.keys(userContributions).length,
+    totalAmount: Object.values(userContributions).reduce(
+      (sum, amount) => sum + parseFloat(formatWeiToEth(amount)), 0
+    ),
+    successfulCampaigns: userCampaigns.filter(campaign => {
+      const status = getCampaignStatusLocal(campaign);
+      return status === CAMPAIGN_STATUS.SUCCESSFUL || status === CAMPAIGN_STATUS.CLAIMED;
+    }).length,
   };
 
-  const generateActivityFeed = (campaigns, contribs) => {
-    const activities = [];
-
-    // Add campaign creation activities
-    campaigns.forEach(campaign => {
-      activities.push({
-        type: 'created',
-        title: `Created campaign #${campaign.id}`,
-        description: `Goal: ${formatCurrency(parseFloat(formatWeiToEth(campaign.goal)))}`,
-        timestamp: campaign.createdAt,
-        campaignId: campaign.id
-      });
-    });
-
-    // Add contribution activities
-    contribs.forEach(contrib => {
-      activities.push({
-        type: 'contributed',
-        title: `Contributed to campaign #${contrib.campaignId}`,
-        description: `Amount: ${formatCurrency(parseFloat(formatWeiToEth(contrib.amount)))}`,
-        timestamp: contrib.timestamp,
-        campaignId: contrib.campaignId
-      });
-    });
-
-    // Sort by timestamp (newest first)
-    activities.sort((a, b) => b.timestamp - a.timestamp);
-    setActivity(activities.slice(0, 10)); // Show only last 10 activities
-  };
+  // Get campaigns where user contributed
+  const contributedCampaigns = campaigns.filter(c => userContributions[c.id]);
 
   const getStatusBadge = (campaign) => {
-    if (isGoalReached(campaign)) {
-      return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircleIcon className="w-3 h-3 mr-1" />
-          Successful
-        </span>
-      );
-    } else if (isCampaignEnded(campaign)) {
-      return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          <XCircleIcon className="w-3 h-3 mr-1" />
-          Failed
-        </span>
-      );
-    } else if (isCampaignActive(campaign)) {
-      return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-crypto-light-blue text-crypto-blue">
-          <ClockIcon className="w-3 h-3 mr-1" />
-          Active
-        </span>
-      );
-    } else {
-      return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-          <ClockIcon className="w-3 h-3 mr-1" />
-          Upcoming
-        </span>
-      );
+    const status = getCampaignStatusLocal(campaign);
+    
+    switch (status) {
+      case CAMPAIGN_STATUS.CANCELLED:
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <NoSymbolIcon className="w-3 h-3 mr-1" />
+            Dibatalkan
+          </span>
+        );
+      case CAMPAIGN_STATUS.CLAIMED:
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            <CheckCircleIcon className="w-3 h-3 mr-1" />
+            Dicairkan
+          </span>
+        );
+      case CAMPAIGN_STATUS.SUCCESSFUL:
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <CheckCircleIcon className="w-3 h-3 mr-1" />
+            Berhasil
+          </span>
+        );
+      case CAMPAIGN_STATUS.FAILED:
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <XCircleIcon className="w-3 h-3 mr-1" />
+            Gagal
+          </span>
+        );
+      case CAMPAIGN_STATUS.ACTIVE:
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-crypto-light-blue text-crypto-blue">
+            <ClockIcon className="w-3 h-3 mr-1" />
+            Aktif
+          </span>
+        );
+      case CAMPAIGN_STATUS.UPCOMING:
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+            <ClockIcon className="w-3 h-3 mr-1" />
+            Akan Datang
+          </span>
+        );
     }
   };
 
-  if (!isConnected) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
-          <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Connect Your Wallet
-          </h2>
-          <p className="text-gray-600 mb-4">
-            You need to connect your wallet to view your dashboard.
-          </p>
-          <Link to="/" className="btn-primary w-full">
-            Connect Wallet
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="large" text="Loading dashboard..." />
+        <LoadingSpinner size="large" text="Memuat dashboard..." />
       </div>
     );
   }
@@ -191,25 +115,29 @@ const UserDashboard = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
           <p className="text-gray-600">
-            Welcome back! Here's your crowdfunding overview.
+            Selamat datang kembali! Berikut ringkasan aktivitas crowdfunding Anda.
           </p>
+          {account && (
+            <p className="text-sm text-gray-400 mt-1">
+              {account.slice(0, 6)}...{account.slice(-4)}
+            </p>
+          )}
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Tab Navigation */}
         <div className="mb-8">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-2 overflow-x-auto pb-1">
             {[
-              { id: 'overview', name: 'Overview', icon: ChartBarIcon },
-              { id: 'campaigns', name: 'My Campaigns', icon: GiftIcon },
-              { id: 'contributions', name: 'My Contributions', icon: HeartIcon },
-              { id: 'activity', name: 'Activity', icon: ClockIcon }
+              { id: 'overview', name: 'Ringkasan', icon: ChartBarIcon },
+              { id: 'campaigns', name: 'Kampanye Saya', icon: GiftIcon },
+              { id: 'contributions', name: 'Kontribusi Saya', icon: HeartIcon },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'bg-crypto-blue text-white'
                       : 'text-gray-600 hover:text-crypto-blue hover:bg-crypto-light-blue'
@@ -234,7 +162,7 @@ const UserDashboard = () => {
                     <GiftIcon className="h-8 w-8 text-crypto-blue" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Campaigns Created</p>
+                    <p className="text-sm font-medium text-gray-600">Kampanye Dibuat</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.totalCreated}</p>
                   </div>
                 </div>
@@ -246,7 +174,7 @@ const UserDashboard = () => {
                     <HeartIcon className="h-8 w-8 text-red-500" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Contributions Made</p>
+                    <p className="text-sm font-medium text-gray-600">Total Kontribusi</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.totalContributed}</p>
                   </div>
                 </div>
@@ -258,7 +186,7 @@ const UserDashboard = () => {
                     <CurrencyDollarIcon className="h-8 w-8 text-green-500" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                    <p className="text-sm font-medium text-gray-600">Total Jumlah</p>
                     <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</p>
                   </div>
                 </div>
@@ -270,41 +198,40 @@ const UserDashboard = () => {
                     <ArrowTrendingUpIcon className="h-8 w-8 text-green-500" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Successful Campaigns</p>
+                    <p className="text-sm font-medium text-gray-600">Kampanye Berhasil</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.successfulCampaigns}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Recent Activity */}
+            {/* Recent campaigns */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-              {activity.length > 0 ? (
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Kampanye Terbaru Anda</h3>
+              {userCampaigns.length > 0 ? (
                 <div className="space-y-4">
-                  {activity.map((item, index) => (
-                    <div key={index} className="flex items-start space-x-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 ${
-                        item.type === 'created' ? 'bg-crypto-blue' : 'bg-red-500'
-                      }`} />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                        <p className="text-sm text-gray-600">{item.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatDate(item.timestamp)}
+                  {userCampaigns.slice(0, 5).map((campaign) => (
+                    <div key={campaign.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Kampanye #{campaign.id}</p>
+                        <p className="text-xs text-gray-500">
+                          Target: {formatCurrency(parseFloat(formatWeiToEth(campaign.goal)))}
                         </p>
                       </div>
-                      <Link
-                        to={`/campaign/${item.campaignId}`}
-                        className="text-xs text-crypto-blue hover:text-crypto-blue-dark"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center space-x-3">
+                        {getStatusBadge(campaign)}
+                        <Link
+                          to={`/campaign/${campaign.id}`}
+                          className="text-xs text-crypto-blue hover:text-crypto-blue-dark"
+                        >
+                          Lihat
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-600">No recent activity.</p>
+                <p className="text-gray-500 text-sm">Belum ada kampanye yang dibuat.</p>
               )}
             </div>
           </div>
@@ -315,16 +242,16 @@ const UserDashboard = () => {
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">My Campaigns</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Kampanye Saya</h3>
                 <Link to="/create" className="btn-primary">
-                  Create New Campaign
+                  Buat Kampanye Baru
                 </Link>
               </div>
             </div>
             <div className="p-6">
-              {createdCampaigns.length > 0 ? (
+              {userCampaigns.length > 0 ? (
                 <div className="space-y-4">
-                  {createdCampaigns.map((campaign) => {
+                  {userCampaigns.map((campaign) => {
                     const goal = parseFloat(formatWeiToEth(campaign.goal));
                     const pledged = parseFloat(formatWeiToEth(campaign.pledged));
                     const progressPercentage = goal > 0 ? (pledged / goal) * 100 : 0;
@@ -334,10 +261,10 @@ const UserDashboard = () => {
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h4 className="text-lg font-medium text-gray-900">
-                              Campaign #{campaign.id}
+                              Kampanye #{campaign.id}
                             </h4>
                             <p className="text-sm text-gray-600 mt-1">
-                              Created {formatDate(campaign.createdAt)}
+                              Mulai: {formatDate(campaign.startAt)} — Selesai: {formatDate(campaign.endAt)}
                             </p>
                           </div>
                           {getStatusBadge(campaign)}
@@ -345,16 +272,16 @@ const UserDashboard = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                           <div>
-                            <p className="text-sm text-gray-600">Goal</p>
-                            <p className="font-medium">{formatCurrency(goal)}</p>
+                            <p className="text-sm text-gray-500">Target</p>
+                            <p className="font-semibold">{formatCurrency(goal)}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">Raised</p>
-                            <p className="font-medium">{formatCurrency(pledged)}</p>
+                            <p className="text-sm text-gray-500">Terkumpul</p>
+                            <p className="font-semibold">{formatCurrency(pledged)}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600">Progress</p>
-                            <p className="font-medium">{formatPercentage(pledged, goal)}</p>
+                            <p className="text-sm text-gray-500">Progres</p>
+                            <p className="font-semibold">{formatPercentage(pledged, goal)}</p>
                           </div>
                         </div>
 
@@ -372,7 +299,7 @@ const UserDashboard = () => {
                             to={`/campaign/${campaign.id}`}
                             className="btn-primary text-sm"
                           >
-                            View Campaign
+                            Lihat Kampanye
                           </Link>
                         </div>
                       </div>
@@ -382,10 +309,10 @@ const UserDashboard = () => {
               ) : (
                 <div className="text-center py-12">
                   <GiftIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">No campaigns yet</h4>
-                  <p className="text-gray-600 mb-4">Create your first campaign to get started</p>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Belum ada kampanye</h4>
+                  <p className="text-gray-600 mb-4">Buat kampanye pertama Anda untuk mulai</p>
                   <Link to="/create" className="btn-primary">
-                    Create Campaign
+                    Buat Kampanye
                   </Link>
                 </div>
               )}
@@ -397,40 +324,36 @@ const UserDashboard = () => {
         {activeTab === 'contributions' && (
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">My Contributions</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Kontribusi Saya</h3>
             </div>
             <div className="p-6">
-              {contributions.length > 0 ? (
+              {contributedCampaigns.length > 0 ? (
                 <div className="space-y-4">
-                  {contributions.map((contrib, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                  {contributedCampaigns.map((campaign) => (
+                    <div key={campaign.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <h4 className="text-lg font-medium text-gray-900">
-                            Campaign #{contrib.campaignId}
+                            Kampanye #{campaign.id}
                           </h4>
                           <p className="text-sm text-gray-600">
-                            Contributed {formatDate(contrib.timestamp)}
+                            Tenggat: {formatDate(campaign.endAt)}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-bold text-crypto-blue">
-                            {formatCurrency(parseFloat(formatWeiToEth(contrib.amount)))}
+                            {formatCurrency(parseFloat(formatWeiToEth(userContributions[campaign.id])))}
                           </p>
-                          {contrib.refunded && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Refunded
-                            </span>
-                          )}
+                          {getStatusBadge(campaign)}
                         </div>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <Link
-                          to={`/campaign/${contrib.campaignId}`}
+                          to={`/campaign/${campaign.id}`}
                           className="btn-secondary text-sm"
                         >
-                          View Campaign
+                          Lihat Kampanye
                         </Link>
                       </div>
                     </div>
@@ -439,55 +362,14 @@ const UserDashboard = () => {
               ) : (
                 <div className="text-center py-12">
                   <HeartIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">No contributions yet</h4>
-                  <p className="text-gray-600 mb-4">Start supporting campaigns to see them here</p>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Belum ada kontribusi</h4>
+                  <p className="text-gray-600 mb-4">Mulai dukung kampanye untuk melihatnya di sini</p>
                   <Link to="/campaigns" className="btn-primary">
-                    Browse Campaigns
+                    Jelajahi Kampanye
                   </Link>
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Activity Tab */}
-        {activeTab === 'activity' && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Activity Feed</h3>
-            {activity.length > 0 ? (
-              <div className="space-y-6">
-                {activity.map((item, index) => (
-                  <div key={index} className="flex items-start space-x-4">
-                    <div className={`w-3 h-3 rounded-full mt-1 ${
-                      item.type === 'created' ? 'bg-crypto-blue' : 'bg-red-500'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                          <p className="text-sm text-gray-600">{item.description}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formatDate(item.timestamp)}
-                          </p>
-                        </div>
-                        <Link
-                          to={`/campaign/${item.campaignId}`}
-                          className="text-xs text-crypto-blue hover:text-crypto-blue-dark"
-                        >
-                          View →
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <ClockIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-lg font-medium text-gray-900 mb-2">No activity yet</h4>
-                <p className="text-gray-600">Your activity will appear here as you create campaigns and make contributions.</p>
-              </div>
-            )}
           </div>
         )}
       </div>

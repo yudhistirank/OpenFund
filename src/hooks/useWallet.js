@@ -10,6 +10,7 @@ export const useWallet = () => {
   const [chainId, setChainId] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
+  const [availableAccounts, setAvailableAccounts] = useState([]);
 
   // Enhanced Web3 provider detection
   const isWalletInstalled = () => {
@@ -38,7 +39,7 @@ export const useWallet = () => {
   // Connect wallet
   const connectWallet = useCallback(async () => {
     if (!isWalletInstalled()) {
-      setError('MetaMask is not installed. Please install MetaMask to continue.');
+      setError('MetaMask belum terpasang. Silakan pasang MetaMask untuk melanjutkan.');
       return false;
     }
 
@@ -46,50 +47,41 @@ export const useWallet = () => {
       setIsConnecting(true);
       setError(null);
 
-      // Enhanced wallet detection
-      if (!isWalletInstalled()) {
-        setError('No Web3 wallet detected. Please install MetaMask, Coinbase Wallet, or another Web3 wallet.');
-        return false;
-      }
-
       // Get the correct provider (MetaMask or other)
       let walletProvider = window.ethereum;
       if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
-        // Multiple providers available, prefer MetaMask
         walletProvider = window.ethereum.providers.find(p => p.isMetaMask) || window.ethereum.providers[0];
       }
 
       if (!walletProvider || typeof walletProvider.request !== 'function') {
-        setError('Wallet provider not accessible. Please try refreshing the page.');
+        setError('Wallet provider tidak dapat diakses. Silakan coba muat ulang halaman.');
         return false;
       }
 
-      // Request account access with better error handling
+      // Request account access
       let accounts;
       try {
-        // First try to get existing accounts
         accounts = await walletProvider.request({ method: 'eth_accounts' });
         
         if (!accounts || accounts.length === 0) {
-          // No existing accounts, request new connection
           accounts = await walletProvider.request({
             method: 'eth_requestAccounts',
           });
         }
       } catch (requestError) {
-        console.error('Failed to access accounts:', requestError);
+        console.error('Gagal mengakses akun:', requestError);
         
         if (requestError.code === 4001) {
-          throw new Error('Connection request was rejected. Please approve the connection when prompted.');
+          throw new Error('Permintaan koneksi ditolak. Silakan setujui permintaan koneksi ketika diminta.');
         } else if (requestError.code === -32602) {
-          throw new Error('Invalid request parameters. Please try again.');
+          throw new Error('Parameter permintaan tidak valid. Silakan coba lagi.');
         } else {
-          throw new Error('Unable to connect to wallet. Please unlock your wallet and try again.');
+          throw new Error('Tidak dapat terhubung ke wallet. Silakan buka kunci wallet Anda dan coba lagi.');
         }
       }
 
       if (!accounts || accounts.length === 0) {
-        throw new Error('No wallet accounts found. Please create or import an account in your wallet.');
+        throw new Error('Tidak ada akun wallet yang ditemukan. Silakan buat atau impor akun di wallet Anda.');
       }
 
       // Create provider and signer
@@ -104,14 +96,14 @@ export const useWallet = () => {
       setAccount(address);
       setChainId(network.chainId.toString());
       setBalance(ethers.formatEther(balance));
+      setAvailableAccounts(accounts);
 
       // Listen for account changes
       window.ethereum.on('accountsChanged', (newAccounts) => {
         if (newAccounts.length === 0) {
           disconnectWallet();
         } else {
-          // Refresh wallet data on account change
-          connectWallet();
+          window.location.reload();
         }
       });
 
@@ -124,21 +116,62 @@ export const useWallet = () => {
     } catch (err) {
       console.error('Error connecting wallet:', err);
       
-      // Provide more specific error messages
       if (err.code === 4001) {
-        setError('Connection rejected. Please approve the connection request when MetaMask prompts you.');
+        setError('Koneksi ditolak. Silakan setujui permintaan koneksi ketika MetaMask meminta.');
       } else if (err.code === -32603) {
-        setError('Unable to access wallet. Please unlock MetaMask and ensure you have at least one account created.');
+        setError('Tidak dapat mengakses wallet. Silakan buka kunci MetaMask dan pastikan Anda telah membuat setidaknya satu akun.');
       } else if (err.message.includes('No active wallet found')) {
-        setError('Wallet not accessible. Please unlock MetaMask and try again.');
-      } else if (err.message.includes('Failed to access wallet accounts')) {
-        setError('Cannot access wallet accounts. Please unlock MetaMask and make sure you have created an account.');
+        setError('Wallet tidak dapat diakses. Silakan buka kunci MetaMask dan coba lagi.');
       } else {
-        setError(err.message || 'Failed to connect wallet. Please try again.');
+        setError(err.message || 'Gagal menghubungkan wallet. Silakan coba lagi.');
       }
       return false;
     } finally {
       setIsConnecting(false);
+    }
+  }, []);
+
+  // Switch to a different account (triggers MetaMask account selection)
+  const switchAccount = useCallback(async () => {
+    if (!isWalletInstalled()) {
+      setError('MetaMask belum terpasang.');
+      return false;
+    }
+
+    try {
+      setError(null);
+      // Request account access again to show the account selector
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }],
+      });
+
+      // Get all available accounts after selection
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts && accounts.length > 0) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        const network = await provider.getNetwork();
+        const balance = await provider.getBalance(address);
+
+        setProvider(provider);
+        setSigner(signer);
+        setAccount(address);
+        setChainId(network.chainId.toString());
+        setBalance(ethers.formatEther(balance));
+        setAvailableAccounts(accounts);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      if (err.code === 4001) {
+        // User cancelled, this is fine
+        return false;
+      }
+      console.error('Error switching account:', err);
+      setError('Gagal mengganti akun. Silakan coba lagi.');
+      return false;
     }
   }, []);
 
@@ -150,12 +183,13 @@ export const useWallet = () => {
     setBalance('0');
     setChainId(null);
     setError(null);
+    setAvailableAccounts([]);
   }, []);
 
   // Switch network
   const switchNetwork = useCallback(async (targetNetwork = 'ethereum_sepolia') => {
     if (!isWalletInstalled()) {
-      setError('MetaMask is not installed');
+      setError('MetaMask belum terpasang');
       return false;
     }
 
@@ -164,7 +198,7 @@ export const useWallet = () => {
       
       const networkConfig = NETWORKS[targetNetwork];
       if (!networkConfig) {
-        throw new Error(`Network configuration not found for ${targetNetwork}`);
+        throw new Error(`Konfigurasi jaringan tidak ditemukan untuk ${targetNetwork}`);
       }
 
       // Try to switch to the network first
@@ -184,7 +218,7 @@ export const useWallet = () => {
             });
             return true;
           } catch (addError) {
-            setError(`Failed to add ${networkConfig.chainName} network: ${addError.message}`);
+            setError(`Gagal menambahkan jaringan ${networkConfig.chainName}: ${addError.message}`);
             return false;
           }
         }
@@ -193,13 +227,12 @@ export const useWallet = () => {
     } catch (err) {
       console.error('Error switching network:', err);
       
-      // Provide more specific error messages
       if (err.code === 4001) {
-        setError('Network switch rejected. Please approve the network change in MetaMask.');
+        setError('Pergantian jaringan ditolak. Silakan setujui perubahan jaringan di MetaMask.');
       } else if (err.message.includes('already pending')) {
-        setError('Network switch already in progress. Please wait or check MetaMask.');
+        setError('Pergantian jaringan sedang dalam proses. Silakan tunggu atau periksa MetaMask.');
       } else {
-        setError(`Failed to switch to ${targetNetwork}: ${err.message}`);
+        setError(`Gagal beralih ke ${targetNetwork}: ${err.message}`);
       }
       return false;
     }
@@ -212,11 +245,11 @@ export const useWallet = () => {
       '137': 'Polygon',
       '8453': 'Base',
       '84532': 'Base Sepolia',
-      '84534': 'Base Sepolia', // Corrected chain ID
+      '84534': 'Base Sepolia',
       '11155111': 'Sepolia',
       '31337': 'Hardhat'
     };
-    return networks[chainId] || `Network ${chainId}`;
+    return networks[chainId] || `Jaringan ${chainId}`;
   }, []);
 
   // Check if connected to supported network
@@ -245,7 +278,6 @@ export const useWallet = () => {
     const autoConnect = async () => {
       if (isWalletInstalled() && window.ethereum.request) {
         try {
-          // Check if accounts are already connected
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
           
           if (accounts && accounts.length > 0) {
@@ -260,6 +292,7 @@ export const useWallet = () => {
             setAccount(address);
             setChainId(network.chainId.toString());
             setBalance(ethers.formatEther(balance));
+            setAvailableAccounts(accounts);
 
             // Set up listeners
             window.ethereum.on('accountsChanged', () => {
@@ -272,12 +305,10 @@ export const useWallet = () => {
           }
         } catch (err) {
           console.error('Auto-connect error:', err);
-          // Don't set error state for auto-connect failures
         }
       }
     };
 
-    // Small delay to ensure window.ethereum is ready
     const timeoutId = setTimeout(autoConnect, 100);
     return () => clearTimeout(timeoutId);
   }, []);
@@ -295,7 +326,6 @@ export const useWallet = () => {
       }
     };
 
-    // Update balance every 30 seconds
     const interval = setInterval(updateBalance, 30000);
     
     return () => clearInterval(interval);
@@ -310,11 +340,13 @@ export const useWallet = () => {
     chainId,
     isConnecting,
     error,
+    availableAccounts,
     
     // Methods
     connectWallet,
     disconnectWallet,
     switchNetwork,
+    switchAccount,
     isWalletInstalled,
     isCorrectNetwork,
     getNetworkName,

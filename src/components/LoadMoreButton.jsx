@@ -7,7 +7,7 @@ const LoadMoreButton = ({
   disabled = false, 
   hasMore = true, 
   className = '',
-  children = 'Load More'
+  children = 'Muat Lebih Banyak'
 }) => {
   return (
     <div className={`text-center ${className}`}>
@@ -27,7 +27,7 @@ const LoadMoreButton = ({
           {loading ? (
             <>
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-              <span>Loading...</span>
+              <span>Memuat...</span>
             </>
           ) : (
             <>
@@ -40,7 +40,7 @@ const LoadMoreButton = ({
       
       {!hasMore && (
         <p className="text-gray-500 text-sm">
-          No more campaigns to load
+          Semua kampanye telah ditampilkan
         </p>
       )}
     </div>

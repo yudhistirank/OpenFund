@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WalletConnect from './WalletConnect';
+import { useWallet } from '../hooks/useWallet';
 import { 
   Bars3Icon,
   XMarkIcon,
@@ -14,12 +15,13 @@ import {
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const { isConnected } = useWallet();
 
   const navigation = [
-    { name: 'Home', href: '/', icon: HomeIcon },
-    { name: 'Explore', href: '/campaigns', icon: ChartBarIcon },
-    { name: 'Create Campaign', href: '/create', icon: PlusCircleIcon },
-    { name: 'Dashboard', href: '/dashboard', icon: UserIcon },
+    { name: 'Beranda', href: '/', icon: HomeIcon },
+    { name: 'Jelajahi', href: '/campaigns', icon: ChartBarIcon },
+    { name: 'Buat Kampanye', href: '/create', icon: PlusCircleIcon },
+    { name: 'Dashboard', href: '/dashboard', icon: UserIcon, requiresAuth: true },
   ];
 
   const isActive = (path) => {
@@ -44,14 +46,16 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-1">
             {navigation.map((item) => {
               const Icon = item.icon;
+              // Sembunyikan menu Dashboard jika belum terhubung
+              if (item.requiresAuth && !isConnected) return null;
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive(item.href)
                       ? 'bg-crypto-blue text-white'
                       : 'text-gray-600 hover:text-crypto-blue hover:bg-crypto-light-blue'
@@ -74,6 +78,7 @@ const Navbar = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-600 hover:text-crypto-blue p-2"
+              aria-label={isMenuOpen ? 'Tutup menu' : 'Buka menu'}
             >
               {isMenuOpen ? (
                 <XMarkIcon className="w-6 h-6" />
@@ -90,6 +95,7 @@ const Navbar = () => {
             <div className="px-2 pt-2 pb-3 space-y-1 border-t border-gray-200">
               {navigation.map((item) => {
                 const Icon = item.icon;
+                if (item.requiresAuth && !isConnected) return null;
                 return (
                   <Link
                     key={item.name}
@@ -108,7 +114,7 @@ const Navbar = () => {
               })}
               
               {/* Mobile Wallet Connect */}
-              <div className="pt-4">
+              <div className="pt-4 border-t border-gray-100">
                 <WalletConnect className="w-full" />
               </div>
             </div>

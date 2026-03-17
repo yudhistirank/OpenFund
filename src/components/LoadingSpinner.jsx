@@ -4,7 +4,7 @@ const LoadingSpinner = ({
   size = 'medium', 
   className = '',
   color = 'text-crypto-blue',
-  text = 'Loading...'
+  text = 'Memuat...'
 }) => {
   const sizeClasses = {
     small: 'w-4 h-4',

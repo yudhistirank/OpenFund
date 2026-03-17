@@ -6,7 +6,7 @@ import {
   GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
-// Simple Discord icon component since Heroicons doesn't have it
+// Komponen ikon Discord sederhana
 const DiscordIcon = ({ className }) => (
   <svg
     className={className}
@@ -18,7 +18,7 @@ const DiscordIcon = ({ className }) => (
   </svg>
 );
 
-// Simple Twitter icon component
+// Komponen ikon Twitter sederhana
 const TwitterIcon = ({ className }) => (
   <svg
     className={className}
@@ -30,7 +30,7 @@ const TwitterIcon = ({ className }) => (
   </svg>
 );
 
-// Simple GitHub icon component  
+// Komponen ikon GitHub sederhana
 const GitHubIcon = ({ className }) => (
   <svg
     className={className}
@@ -47,10 +47,10 @@ const Footer = () => {
 
   const footerLinks = {
     platform: [
-      { name: 'Browse Campaigns', href: '/campaigns' },
-      { name: 'Create Campaign', href: '/create' },
-      { name: 'How it Works', href: '/how-it-works' },
-      { name: 'Help Center', href: '/help' }
+      { name: 'Jelajahi Kampanye', href: '/campaigns' },
+      { name: 'Buat Kampanye', href: '/create' },
+      { name: 'Cara Kerja', href: '/how-it-works' },
+      { name: 'Pusat Bantuan', href: '/help' }
     ],
     community: [
       { name: 'Discord', href: '#', icon: DiscordIcon },
@@ -59,10 +59,10 @@ const Footer = () => {
       { name: 'Blog', href: '#', icon: GlobeAltIcon }
     ],
     legal: [
-      { name: 'Privacy Policy', href: '/privacy' },
-      { name: 'Terms of Service', href: '/terms' },
-      { name: 'Cookie Policy', href: '/cookies' },
-      { name: 'Contact', href: '/contact' }
+      { name: 'Kebijakan Privasi', href: '/privacy' },
+      { name: 'Syarat Layanan', href: '/terms' },
+      { name: 'Kebijakan Cookie', href: '/cookies' },
+      { name: 'Kontak', href: '/contact' }
     ]
   };
 
@@ -70,7 +70,7 @@ const Footer = () => {
     <footer className="bg-gray-50 border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Brand Section */}
+          {/* Bagian Merek */}
           <div className="lg:col-span-1">
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-8 h-8 bg-crypto-blue rounded-lg flex items-center justify-center">
@@ -79,8 +79,8 @@ const Footer = () => {
               <span className="text-xl font-bold text-gray-900">OpenFund</span>
             </div>
             <p className="text-gray-600 text-sm mb-4">
-              The decentralized crowdfunding platform built on Base. 
-              Fund your ideas with transparency and community support.
+              Platform crowdfunding terdesentralisasi yang dibangun di atas Base.
+              Danai ide Anda dengan transparansi dan dukungan komunitas.
             </p>
             <div className="flex space-x-4">
               {footerLinks.community.map((item) => {
@@ -99,7 +99,7 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Platform Links */}
+          {/* Tautan Platform */}
           <div>
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
               Platform
@@ -118,10 +118,10 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Legal Links */}
+          {/* Tautan Hukum */}
           <div>
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-              Legal
+              Hukum
             </h3>
             <ul className="space-y-3">
               {footerLinks.legal.map((item) => (
@@ -137,44 +137,44 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Newsletter Signup */}
+          {/* Berlangganan Newsletter */}
           <div>
             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-              Stay Updated
+              Tetap Terkini
             </h3>
             <p className="text-gray-600 text-sm mb-4">
-              Get notified about new campaigns and platform updates.
+              Dapatkan notifikasi tentang kampanye baru dan pembaruan platform.
             </p>
             <form className="space-y-2">
               <input
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Masukkan email Anda"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-crypto-blue focus:border-transparent"
               />
               <button
                 type="submit"
                 className="w-full btn-primary text-sm"
               >
-                Subscribe
+                Berlangganan
               </button>
             </form>
           </div>
         </div>
 
-        {/* Bottom Section */}
+        {/* Bagian Bawah */}
         <div className="mt-8 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-600 text-sm">
-              © {currentYear} OpenFund. All rights reserved.
+              © {currentYear} OpenFund. Seluruh hak cipta dilindungi.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <span className="text-xs text-gray-500">
-                Built on Base Network
+                Dibangun di Atas Jaringan Base
               </span>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span className="text-xs text-gray-500">
-                  Network: Multi-Network Support
+                  Dukungan Multi-Jaringan
                 </span>
               </div>
             </div>

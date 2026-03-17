@@ -39,7 +39,8 @@ export const uploadToIPFS = async (metadata) => {
       throw new Error('No IPFS hash returned from Pinata');
     }
     
-    return data.IpfsHash;
+    // Return with ipfs:// prefix for CrowdFundV2 contract compatibility
+    return `ipfs://${data.IpfsHash}`;
   } catch (error) {
     console.error('Error uploading to IPFS:', error);
     throw new Error(`Failed to upload to IPFS: ${error.message}`);
@@ -93,13 +94,30 @@ export const uploadImageToIPFS = async (file) => {
 };
 
 /**
+ * Strip ipfs:// prefix from CID if present
+ * @param {string} cid - CID that may have ipfs:// prefix
+ * @returns {string} - Raw CID without prefix
+ */
+export const stripIPFSPrefix = (cid) => {
+  if (!cid) return '';
+  if (cid.startsWith('ipfs://')) {
+    return cid.slice(7);
+  }
+  return cid;
+};
+
+/**
  * Fetch metadata from IPFS
- * @param {string} cid - IPFS hash (CID)
+ * @param {string} cid - IPFS hash (CID), may include ipfs:// prefix
  * @returns {Promise<Object>} - Parsed JSON metadata
  */
 export const fetchFromIPFS = async (cid) => {
   try {
-    const response = await fetch(`${IPFS_GATEWAY_URL}${cid}`);
+    // Strip ipfs:// prefix if present (CrowdFundV2 stores CIDs with this prefix)
+    const rawCid = stripIPFSPrefix(cid);
+    if (!rawCid) throw new Error('Empty CID');
+    
+    const response = await fetch(`${IPFS_GATEWAY_URL}${rawCid}`);
 
     if (!response.ok) {
       throw new Error('Failed to fetch from IPFS');
@@ -115,11 +133,12 @@ export const fetchFromIPFS = async (cid) => {
 
 /**
  * Get IPFS gateway URL for a CID
- * @param {string} cid - IPFS hash (CID)
+ * @param {string} cid - IPFS hash (CID), may include ipfs:// prefix
  * @returns {string} - Full gateway URL
  */
 export const getIPFSUrl = (cid) => {
-  return `${IPFS_GATEWAY_URL}${cid}`;
+  const rawCid = stripIPFSPrefix(cid);
+  return `${IPFS_GATEWAY_URL}${rawCid}`;
 };
 
 /**

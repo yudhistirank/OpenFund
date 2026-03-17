@@ -6,7 +6,10 @@ import {
   WalletIcon, 
   ChevronDownIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon 
+  ExclamationTriangleIcon,
+  ArrowsRightLeftIcon,
+  ArrowRightOnRectangleIcon,
+  ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
 
 const WalletConnect = ({ className = '' }) => {
@@ -19,6 +22,7 @@ const WalletConnect = ({ className = '' }) => {
     connectWallet,
     disconnectWallet,
     switchNetwork,
+    switchAccount,
     isCorrectNetwork,
     getNetworkName,
     getFormattedBalance,
@@ -27,16 +31,17 @@ const WalletConnect = ({ className = '' }) => {
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleConnect = async () => {
     try {
       const success = await connectWallet();
       if (!success) {
-        // Error is already set in the hook
-        console.error('Wallet connection failed');
+        console.error('Koneksi wallet gagal');
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
+      console.error('Terjadi kesalahan tak terduga:', err);
     }
   };
 
@@ -49,15 +54,32 @@ const WalletConnect = ({ className = '' }) => {
     setIsSwitchingNetwork(false);
   };
 
+  const handleSwitchAccount = async () => {
+    setIsSwitchingAccount(true);
+    setShowDropdown(false);
+    try {
+      await switchAccount();
+    } finally {
+      setIsSwitchingAccount(false);
+    }
+  };
+
   const handleDisconnect = () => {
     disconnectWallet();
     setShowDropdown(false);
   };
 
+  const handleCopyAddress = () => {
+    if (account) {
+      navigator.clipboard.writeText(account);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="flex items-center space-x-4">
-        <NetworkSelector />
         <button
           onClick={handleConnect}
           disabled={isConnecting}
@@ -66,12 +88,12 @@ const WalletConnect = ({ className = '' }) => {
           {isConnecting ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Connecting...</span>
+              <span>Menghubungkan...</span>
             </>
           ) : (
             <>
               <WalletIcon className="w-5 h-5" />
-              <span>Connect Wallet</span>
+              <span>Hubungkan Wallet</span>
             </>
           )}
         </button>
@@ -89,14 +111,19 @@ const WalletConnect = ({ className = '' }) => {
         <button
           onClick={() => setShowDropdown(!showDropdown)}
           className="btn-secondary flex items-center space-x-3 justify-between min-w-[200px]"
+          disabled={isSwitchingAccount}
         >
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-crypto-blue rounded-full flex items-center justify-center">
-              <WalletIcon className="w-4 h-4 text-white" />
+              {isSwitchingAccount ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <WalletIcon className="w-4 h-4 text-white" />
+              )}
             </div>
             <div className="text-left">
               <div className="text-sm font-medium text-gray-900">
-                {shortAddress}
+                {isSwitchingAccount ? 'Mengganti akun...' : shortAddress}
               </div>
               <div className="text-xs text-gray-500">
                 {getFormattedBalance(3)} {isCorrectNetwork() ? 'ETH' : '⚠️'}
@@ -110,86 +137,126 @@ const WalletConnect = ({ className = '' }) => {
           />
         </button>
 
-      {/* Dropdown */}
-      {showDropdown && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40"
-            onClick={() => setShowDropdown(false)}
-          />
-          
-          {/* Dropdown Menu */}
-          <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-            <div className="p-3 border-b border-gray-200">
-              <div className="flex items-center space-x-2 text-green-600">
-                <CheckCircleIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">Connected</span>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {formatAddress(account)}
-              </div>
-            </div>
+        {/* Dropdown */}
+        {showDropdown && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 z-40"
+              onClick={() => setShowDropdown(false)}
+            />
             
-            <div className="p-3 space-y-3">
-              {/* Balance */}
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Balance</span>
-                <span className="text-sm font-medium">{getFormattedBalance(4)} ETH</span>
+            {/* Dropdown Menu */}
+            <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-xl z-50">
+              {/* Wallet Header */}
+              <div className="p-4 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2 text-green-600">
+                    <CheckCircleIcon className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Terhubung</span>
+                  </div>
+                  <button
+                    onClick={handleCopyAddress}
+                    className="flex items-center space-x-1 text-xs text-gray-500 hover:text-crypto-blue transition-colors"
+                    title="Salin alamat"
+                  >
+                    <ClipboardDocumentIcon className="w-3.5 h-3.5" />
+                    <span>{copied ? 'Tersalin!' : 'Salin'}</span>
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="text-xs font-mono text-gray-600 break-all">
+                    {formatAddress(account)}
+                  </div>
+                </div>
               </div>
               
-              {/* Network */}
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Network</span>
-                <span className="text-sm font-medium">{getNetworkName(chainId)}</span>
+              {/* Wallet Details */}
+              <div className="p-4 space-y-3 border-b border-gray-100">
+                {/* Balance */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">Saldo</span>
+                  <span className="text-sm font-semibold text-gray-900">{getFormattedBalance(4)} ETH</span>
+                </div>
+                
+                {/* Network */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">Jaringan</span>
+                  <span className="text-sm font-semibold text-gray-900">{getNetworkName(chainId)}</span>
+                </div>
+                
+                {/* Network Status */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">Status</span>
+                  <span className={`text-sm font-semibold ${
+                    isCorrectNetwork() ? 'text-green-600' : 'text-orange-600'
+                  }`}>
+                    {isCorrectNetwork() ? 'Jaringan Sesuai' : 'Jaringan Salah'}
+                  </span>
+                </div>
+
+                {/* Wrong Network Warning */}
+                {!isCorrectNetwork() && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div className="flex items-start space-x-2">
+                      <ExclamationTriangleIcon className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-orange-700">Jaringan tidak sesuai</p>
+                        <p className="text-xs text-orange-600 mt-0.5">Beberapa fitur mungkin tidak berfungsi.</p>
+                        <button
+                          onClick={handleSwitchNetwork}
+                          disabled={isSwitchingNetwork}
+                          className="mt-2 text-xs font-medium text-orange-700 underline hover:no-underline"
+                        >
+                          {isSwitchingNetwork ? 'Mengganti jaringan...' : 'Ganti ke Base Sepolia'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
-              {/* Network Status */}
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Status</span>
-                <span className={`text-sm font-medium ${
-                  isCorrectNetwork() ? 'text-green-600' : 'text-orange-600'
-                }`}>
-                  {isCorrectNetwork() ? 'Correct Network' : 'Wrong Network'}
-                </span>
+              {/* Actions */}
+              <div className="p-3 space-y-1">
+                {/* Switch Account */}
+                <button
+                  onClick={handleSwitchAccount}
+                  disabled={isSwitchingAccount}
+                  className="w-full flex items-center space-x-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <ArrowsRightLeftIcon className="w-4 h-4 text-gray-500" />
+                  <span>Ganti Akun</span>
+                </button>
+
+                {/* Disconnect */}
+                <button
+                  onClick={handleDisconnect}
+                  className="w-full flex items-center space-x-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                  <span>Putuskan Koneksi</span>
+                </button>
               </div>
             </div>
-            
-            {/* Actions */}
-            <div className="p-3 border-t border-gray-200 space-y-2">
-              <button
-                onClick={handleDisconnect}
-                className="w-full text-sm px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                Disconnect Wallet
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <div className="fixed bottom-4 right-4 max-w-sm p-4 bg-red-50 border border-red-200 rounded-xl shadow-lg z-50">
           <div className="flex items-center space-x-2 mb-2">
-            <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
-            <span className="text-sm font-medium text-red-700">Connection Issue</span>
+            <ExclamationTriangleIcon className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <span className="text-sm font-semibold text-red-700">Masalah Koneksi</span>
           </div>
           <div className="text-sm text-red-600 mb-3">{error}</div>
           
-          {/* Help Instructions */}
           <div className="text-xs text-red-600 space-y-1">
-            <div className="font-medium">Quick Fix:</div>
-            <div>1. Click the MetaMask extension in your browser</div>
-            <div>2. Enter your password to unlock (if locked)</div>
-            <div>3. Make sure you have at least one account created</div>
-            <div>4. Try connecting again</div>
-            {error.includes('wallet') && (
-              <div className="mt-2 p-2 bg-red-100 rounded text-xs">
-                💡 <strong>Still not working?</strong> Try refreshing this page or restarting your browser.
-              </div>
-            )}
+            <div className="font-medium">Solusi Cepat:</div>
+            <div>1. Klik ikon ekstensi MetaMask di browser Anda</div>
+            <div>2. Masukkan kata sandi untuk membuka kunci (jika terkunci)</div>
+            <div>3. Pastikan Anda memiliki setidaknya satu akun yang dibuat</div>
+            <div>4. Coba hubungkan kembali</div>
           </div>
         </div>
       )}

@@ -14,8 +14,6 @@ const NetworkSelector = ({ className = '' }) => {
     chainId,
     isConnected,
     switchNetwork,
-    isCorrectNetwork,
-    getNetworkName,
     isWalletInstalled
   } = useWallet();
 
@@ -48,14 +46,13 @@ const NetworkSelector = ({ className = '' }) => {
     setShowDropdown(false);
     
     try {
-      // Convert chainId to networkKey if needed
       const targetNetworkKey = getNetworkKey(networkKey) || networkKey;
       const success = await switchNetwork(targetNetworkKey);
       if (!success) {
-        console.error('Network switch failed');
+        console.error('Pergantian jaringan gagal');
       }
     } catch (err) {
-      console.error('Network switch error:', err);
+      console.error('Error pergantian jaringan:', err);
     } finally {
       setIsSwitching(false);
     }
@@ -64,8 +61,8 @@ const NetworkSelector = ({ className = '' }) => {
   if (!isConnected) {
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
-        <GlobeAltIcon className="w-4 h-4 text-gray-500" />
-        <span className="text-sm text-gray-500">Connect wallet to select network</span>
+        <GlobeAltIcon className="w-4 h-4 text-gray-400" />
+        <span className="text-sm text-gray-400">Hubungkan wallet</span>
       </div>
     );
   }
@@ -81,7 +78,7 @@ const NetworkSelector = ({ className = '' }) => {
         {currentNetwork ? (
           <>
             <span className="text-lg">{currentNetwork.icon}</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm font-medium text-gray-900 hidden sm:inline">
               {currentNetwork.name}
             </span>
             <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform ${
@@ -91,11 +88,14 @@ const NetworkSelector = ({ className = '' }) => {
         ) : (
           <>
             <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />
-            <span className="text-sm text-orange-600">Unsupported Network</span>
+            <span className="text-sm text-orange-600 hidden sm:inline">Jaringan Tidak Didukung</span>
             <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform ${
               showDropdown ? 'rotate-180' : ''
             }`} />
           </>
+        )}
+        {isSwitching && (
+          <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
         )}
       </button>
 
@@ -109,11 +109,11 @@ const NetworkSelector = ({ className = '' }) => {
           />
           
           {/* Dropdown Content */}
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-            <div className="p-3 border-b border-gray-200">
-              <h3 className="text-sm font-medium text-gray-900">Select Network</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Choose your preferred blockchain network
+          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-50">
+            <div className="p-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">Pilih Jaringan</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Pilih jaringan blockchain yang ingin Anda gunakan
               </p>
             </div>
             
@@ -125,15 +125,15 @@ const NetworkSelector = ({ className = '' }) => {
                   <button
                     key={network.key}
                     onClick={() => handleNetworkSwitch(network.key)}
-                    disabled={isSwitching}
-                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors disabled:opacity-50 ${
+                    disabled={isSwitching || isCurrentNetwork}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors disabled:cursor-not-allowed ${
                       isCurrentNetwork 
                         ? `${network.bgColor} ${network.borderColor} border` 
-                        : 'hover:bg-gray-50'
+                        : 'hover:bg-gray-50 disabled:opacity-60'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg">{network.icon}</span>
+                      <span className="text-xl">{network.icon}</span>
                       <div className="text-left">
                         <div className={`text-sm font-medium ${
                           network.color === 'blue' ? 'text-blue-600' :
@@ -150,7 +150,7 @@ const NetworkSelector = ({ className = '' }) => {
                     </div>
                     
                     {isCurrentNetwork && (
-                      <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                      <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0" />
                     )}
                   </button>
                 );
@@ -158,12 +158,12 @@ const NetworkSelector = ({ className = '' }) => {
             </div>
             
             {/* Network Info */}
-            <div className="p-3 border-t border-gray-200 bg-gray-50">
+            <div className="p-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
               <div className="text-xs text-gray-600 space-y-1">
-                <div className="font-medium">Network Information:</div>
-                <div>• Both networks use ETH for gas fees</div>
-                <div>• Contracts are deployed on both networks</div>
-                <div>• Lower fees on Base network</div>
+                <div className="font-semibold text-gray-700 mb-1.5">Informasi Jaringan:</div>
+                <div>• Kedua jaringan menggunakan ETH untuk biaya gas</div>
+                <div>• Kontrak telah di-deploy di kedua jaringan</div>
+                <div>• Biaya lebih rendah di jaringan Base</div>
               </div>
             </div>
           </div>

@@ -6,8 +6,14 @@ import {
   formatDate, 
   formatCurrency 
 } from '../utils/format';
-import { isCampaignActive, isCampaignEnded, isGoalReached } from '../utils/validation';
-import { APP_CONSTANTS } from '../constants';
+import {
+  getCampaignStatusLocal,
+  isCampaignEnded,
+  isCampaignCancelled,
+  isCampaignClaimed,
+  isGoalReached
+} from '../utils/validation';
+import { CAMPAIGN_STATUS } from '../constants';
 import { fetchFromIPFS } from '../utils/ipfs';
 import useCurrentTime from '../hooks/useCurrentTime';
 import { 
@@ -16,8 +22,7 @@ import {
   UserIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ChartBarIcon,
-  PhotoIcon
+  NoSymbolIcon
 } from '@heroicons/react/24/outline';
 
 const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
@@ -25,75 +30,88 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
   const [metadata, setMetadata] = useState(null);
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   
-  if (!campaign) return null;
-
   // Fetch metadata from IPFS
   useEffect(() => {
+    if (!campaign) return;
     if (campaign.metadata && campaign.metadata !== '') {
-      setLoadingMetadata(true);
+      let cancelled = false;
+      setLoadingMetadata(true); // eslint-disable-line
       fetchFromIPFS(campaign.metadata)
         .then((data) => {
-          setMetadata(data);
+          if (!cancelled) setMetadata(data);
         })
         .catch((error) => {
           console.error('Error fetching metadata:', error);
         })
         .finally(() => {
-          setLoadingMetadata(false);
+          if (!cancelled) setLoadingMetadata(false);
         });
+      return () => { cancelled = true; };
     }
-  }, [campaign.metadata]);
+  }, [campaign?.metadata]);
+
+  if (!campaign) return null;
 
   const goal = parseFloat(formatWeiToEth(campaign.goal));
   const pledged = parseFloat(formatWeiToEth(campaign.pledged));
   const progressPercentage = goal > 0 ? (pledged / goal) * 100 : 0;
-  const isActive = isCampaignActive(campaign);
+  const campaignStatus = getCampaignStatusLocal(campaign);
   const hasEnded = isCampaignEnded(campaign);
+  const isCancelled = isCampaignCancelled(campaign);
+  const isClaimed = isCampaignClaimed(campaign);
   const goalReached = isGoalReached(campaign);
   const userPledgeAmount = parseFloat(formatWeiToEth(userPledge));
 
   const getStatusInfo = () => {
-    if (hasEnded) {
-      return goalReached 
-        ? { text: 'Successful', color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircleIcon }
-        : { text: 'Failed', color: 'text-red-600', bg: 'bg-red-50', icon: XCircleIcon };
+    switch (campaignStatus) {
+      case CAMPAIGN_STATUS.CANCELLED:
+        return { text: 'Dibatalkan', color: 'text-gray-600', bg: 'bg-gray-100', icon: NoSymbolIcon };
+      case CAMPAIGN_STATUS.CLAIMED:
+        return { text: 'Dicairkan', color: 'text-purple-600', bg: 'bg-purple-50', icon: CheckCircleIcon };
+      case CAMPAIGN_STATUS.SUCCESSFUL:
+        return { text: 'Berhasil', color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircleIcon };
+      case CAMPAIGN_STATUS.FAILED:
+        return { text: 'Gagal', color: 'text-red-600', bg: 'bg-red-50', icon: XCircleIcon };
+      case CAMPAIGN_STATUS.ACTIVE:
+        return { text: 'Aktif', color: 'text-crypto-blue', bg: 'bg-crypto-light-blue', icon: ClockIcon };
+      case CAMPAIGN_STATUS.UPCOMING:
+      default:
+        return { text: 'Akan Datang', color: 'text-orange-600', bg: 'bg-orange-50', icon: ClockIcon };
     }
-    return isActive 
-      ? { text: 'Active', color: 'text-crypto-blue', bg: 'bg-crypto-light-blue', icon: ClockIcon }
-      : { text: 'Upcoming', color: 'text-orange-600', bg: 'bg-orange-50', icon: ClockIcon };
   };
 
   const statusInfo = getStatusInfo();
   const StatusIcon = statusInfo.icon;
 
   const timeRemaining = () => {
-    if (hasEnded) return 'Ended';
+    if (isCancelled) return 'Dibatalkan';
+    if (hasEnded) return 'Selesai';
     
     const endTime = campaign.endAt;
     const remaining = endTime - now;
     
-    if (remaining <= 0) return 'Ending soon';
+    if (remaining <= 0) return 'Segera berakhir';
     
     const days = Math.floor(remaining / (24 * 60 * 60));
     const hours = Math.floor((remaining % (24 * 60 * 60)) / (60 * 60));
     
-    if (days > 0) return `${days}d ${hours}h left`;
-    if (hours > 0) return `${hours}h left`;
-    return `${Math.floor(remaining / 60)}m left`;
+    if (days > 0) return `${days}h ${hours}j tersisa`;
+    if (hours > 0) return `${hours}j tersisa`;
+    return `${Math.floor(remaining / 60)}m tersisa`;
   };
 
   return (
-    <div className="card hover:shadow-lg transition-all duration-200 group">
+    <div className={`card hover:shadow-lg transition-all duration-200 group ${isCancelled ? 'opacity-60' : ''}`}>
       {/* Campaign Image */}
       <div className="aspect-video bg-gradient-to-br from-crypto-light-blue to-blue-100 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
         {metadata?.image && !loadingMetadata ? (
           <img
             src={metadata.image}
-            alt={metadata.title || 'Campaign image'}
+            alt={metadata.title || 'Gambar kampanye'}
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = 'none';
-              e.target.nextElementSibling.style.display = 'flex';
+              if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
             }}
           />
         ) : null}
@@ -114,13 +132,13 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
         </span>
         
         <span className="text-xs text-gray-500">
-          {hasEnded ? formatDate(campaign.endAt) : timeRemaining()}
+          {isCancelled ? 'Dibatalkan' : hasEnded ? formatDate(campaign.endAt) : timeRemaining()}
         </span>
       </div>
 
       {/* Campaign Title */}
       <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-crypto-blue transition-colors">
-        {metadata?.title || `Campaign #${campaign.id}`}
+        {metadata?.title || `Kampanye #${campaign.id}`}
       </h3>
 
       {/* Creator Info */}
@@ -128,7 +146,7 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
         <div className="flex items-center space-x-2 mb-3">
           <UserIcon className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-600">
-            {formatCurrency(goal)} goal
+            {formatCurrency(goal)} target
           </span>
         </div>
       )}
@@ -137,7 +155,7 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-700">
-            {formatCurrency(pledged)} raised
+            {formatCurrency(pledged)} terkumpul
           </span>
           <span className="text-sm text-gray-500">
             {formatPercentage(pledged, goal)}
@@ -146,6 +164,7 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all duration-300 ${
+              isCancelled ? 'bg-gray-400' :
               progressPercentage >= 100 ? 'bg-green-500' : 'bg-crypto-blue'
             }`}
             style={{ width: `${Math.min(progressPercentage, 100)}%` }}
@@ -156,16 +175,16 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
       {/* Campaign Details */}
       <div className="space-y-2 mb-4">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Goal:</span>
+          <span className="text-gray-600">Target:</span>
           <span className="font-medium">{formatCurrency(goal)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Deadline:</span>
+          <span className="text-gray-600">Tenggat:</span>
           <span className="font-medium">{formatDate(campaign.endAt)}</span>
         </div>
         {userPledgeAmount > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Your pledge:</span>
+            <span className="text-gray-600">Kontribusi Anda:</span>
             <span className="font-medium text-crypto-blue">{formatCurrency(userPledgeAmount)}</span>
           </div>
         )}
@@ -177,28 +196,44 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
           to={`/campaign/${campaign.id}`}
           className="flex-1 btn-primary text-center text-sm"
         >
-          View Details
+          Lihat Detail
         </Link>
         
-        {userPledgeAmount > 0 && (
-          <button className="px-4 py-2 text-sm border border-crypto-blue text-crypto-blue rounded-lg hover:bg-crypto-light-blue transition-colors">
-            Manage
-          </button>
+        {userPledgeAmount > 0 && !isCancelled && (
+          <Link
+            to={`/campaign/${campaign.id}`}
+            className="px-4 py-2 text-sm border border-crypto-blue text-crypto-blue rounded-lg hover:bg-crypto-light-blue transition-colors"
+          >
+            Kelola
+          </Link>
         )}
       </div>
 
-      {/* Claim/Refund Notice */}
-      {hasEnded && (
+      {/* Claim/Refund Notification */}
+      {hasEnded && !isCancelled && (
         <div className="mt-3 p-2 rounded-lg text-xs">
-          {goalReached ? (
-            <span className="text-green-700 bg-green-50">
-              Campaign successful! Creator can claim funds.
+          {isClaimed ? (
+            <span className="text-purple-700 bg-purple-50 px-2 py-1 rounded">
+              Dana telah dicairkan oleh pembuat kampanye.
+            </span>
+          ) : goalReached ? (
+            <span className="text-green-700 bg-green-50 px-2 py-1 rounded">
+              Kampanye berhasil! Pembuat dapat mencairkan dana.
             </span>
           ) : (
-            <span className="text-red-700 bg-red-50">
-              Goal not reached. Contributors can claim refunds.
+            <span className="text-red-700 bg-red-50 px-2 py-1 rounded">
+              Target tidak tercapai. Kontributor dapat meminta pengembalian dana.
             </span>
           )}
+        </div>
+      )}
+
+      {/* Cancelled Notice */}
+      {isCancelled && (
+        <div className="mt-3 p-2 rounded-lg text-xs">
+          <span className="text-gray-600 bg-gray-50 px-2 py-1 rounded">
+            Kampanye ini telah dibatalkan.
+          </span>
         </div>
       )}
     </div>

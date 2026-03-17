@@ -1,4 +1,4 @@
-import { APP_CONSTANTS } from '../constants';
+import { APP_CONSTANTS, CAMPAIGN_STATUS } from '../constants';
 
 /**
  * Validate Ethereum address
@@ -242,14 +242,35 @@ export const validatePledgeAmount = (amount, userBalance) => {
 };
 
 /**
- * Check if campaign is active
+ * Compute campaign status locally, mirroring CrowdFundV2.getCampaignStatus()
+ * @param {Object} campaign - Campaign object with status, claimed, startAt, endAt, pledged, goal
+ * @returns {number} Status enum value (0-5)
+ */
+export const getCampaignStatusLocal = (campaign) => {
+  if (!campaign) return null;
+  
+  // Check stored status for Cancelled
+  if (Number(campaign.status) === CAMPAIGN_STATUS.CANCELLED) return CAMPAIGN_STATUS.CANCELLED;
+  // Check claimed flag
+  if (campaign.claimed) return CAMPAIGN_STATUS.CLAIMED;
+  
+  const now = Math.floor(Date.now() / 1000);
+  if (now < campaign.startAt) return CAMPAIGN_STATUS.UPCOMING;
+  if (now <= campaign.endAt) return CAMPAIGN_STATUS.ACTIVE;
+  
+  // Campaign ended - check if goal reached
+  if (BigInt(campaign.pledged) >= BigInt(campaign.goal)) return CAMPAIGN_STATUS.SUCCESSFUL;
+  return CAMPAIGN_STATUS.FAILED;
+};
+
+/**
+ * Check if campaign is active (considers Cancelled status from v2)
  * @param {Object} campaign - Campaign object
  * @returns {boolean} True if campaign is active
  */
 export const isCampaignActive = (campaign) => {
   if (!campaign) return false;
-  const now = Math.floor(Date.now() / 1000);
-  return now >= campaign.startAt && now <= campaign.endAt;
+  return getCampaignStatusLocal(campaign) === CAMPAIGN_STATUS.ACTIVE;
 };
 
 /**
@@ -259,8 +280,40 @@ export const isCampaignActive = (campaign) => {
  */
 export const isCampaignEnded = (campaign) => {
   if (!campaign) return false;
-  const now = Math.floor(Date.now() / 1000);
-  return now > campaign.endAt;
+  const status = getCampaignStatusLocal(campaign);
+  return status === CAMPAIGN_STATUS.SUCCESSFUL ||
+         status === CAMPAIGN_STATUS.FAILED ||
+         status === CAMPAIGN_STATUS.CLAIMED;
+};
+
+/**
+ * Check if campaign is cancelled
+ * @param {Object} campaign - Campaign object
+ * @returns {boolean} True if campaign is cancelled
+ */
+export const isCampaignCancelled = (campaign) => {
+  if (!campaign) return false;
+  return getCampaignStatusLocal(campaign) === CAMPAIGN_STATUS.CANCELLED;
+};
+
+/**
+ * Check if campaign is claimed
+ * @param {Object} campaign - Campaign object
+ * @returns {boolean} True if campaign funds have been claimed
+ */
+export const isCampaignClaimed = (campaign) => {
+  if (!campaign) return false;
+  return getCampaignStatusLocal(campaign) === CAMPAIGN_STATUS.CLAIMED;
+};
+
+/**
+ * Check if campaign is upcoming
+ * @param {Object} campaign - Campaign object
+ * @returns {boolean} True if campaign has not started yet
+ */
+export const isCampaignUpcoming = (campaign) => {
+  if (!campaign) return false;
+  return getCampaignStatusLocal(campaign) === CAMPAIGN_STATUS.UPCOMING;
 };
 
 /**
@@ -270,34 +323,36 @@ export const isCampaignEnded = (campaign) => {
  */
 export const isGoalReached = (campaign) => {
   if (!campaign) return false;
-  return campaign.pledged >= campaign.goal;
+  return BigInt(campaign.pledged) >= BigInt(campaign.goal);
 };
 
 /**
- * Check if user can claim funds
+ * Check if user can claim funds (v2: uses status-based logic)
  * @param {Object} campaign - Campaign object
  * @param {string} userAddress - User's address
  * @returns {boolean} True if user can claim
  */
 export const canUserClaim = (campaign, userAddress) => {
   if (!campaign || !userAddress) return false;
-  return campaign.creator === userAddress && 
-         isCampaignEnded(campaign) && 
-         isGoalReached(campaign) && 
+  const status = getCampaignStatusLocal(campaign);
+  return campaign.creator.toLowerCase() === userAddress.toLowerCase() &&
+         status === CAMPAIGN_STATUS.SUCCESSFUL &&
          !campaign.claimed;
 };
 
 /**
- * Check if user can get refund
+ * Check if user can get refund (v2: uses status-based logic)
  * @param {Object} campaign - Campaign object
- * @param {bigint} userPledgedAmount - User's pledged amount
+ * @param {string|bigint} userPledgedAmount - User's pledged amount
  * @returns {boolean} True if user can get refund
  */
 export const canUserRefund = (campaign, userPledgedAmount) => {
   if (!campaign || !userPledgedAmount) return false;
-  return isCampaignEnded(campaign) && 
-         !isGoalReached(campaign) && 
-         userPledgedAmount > 0n;
+  const status = getCampaignStatusLocal(campaign);
+  const pledgedBigInt = typeof userPledgedAmount === 'bigint'
+    ? userPledgedAmount
+    : BigInt(userPledgedAmount);
+  return status === CAMPAIGN_STATUS.FAILED && pledgedBigInt > 0n;
 };
 
 /**
