@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
 import { CAMPAIGN_STATUS } from '../constants';
+import { useTranslation } from '../i18n';
 import {
   formatWeiToEth,
   formatDate,
@@ -24,6 +25,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const UserDashboard = () => {
+  const { t } = useTranslation();
   const { account, signer } = useWallet();
   const {
     campaigns,
@@ -113,9 +115,9 @@ const UserDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('dashboard.title')}</h1>
           <p className="text-gray-600">
-            Selamat datang kembali! Berikut ringkasan aktivitas crowdfunding Anda.
+            {t('dashboard.welcome')}
           </p>
           {account && (
             <p className="text-sm text-gray-400 mt-1">

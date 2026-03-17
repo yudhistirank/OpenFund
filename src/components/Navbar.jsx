@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import WalletConnect from './WalletConnect';
 import { useWallet } from '../hooks/useWallet';
+import { useTranslation } from '../i18n';
 import { 
   Bars3Icon,
   XMarkIcon,
@@ -9,19 +10,21 @@ import {
   HomeIcon,
   PlusCircleIcon,
   UserIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const { isConnected } = useWallet();
+  const { t, language, setLanguage, languages, languageNames } = useTranslation();
 
   const navigation = [
-    { name: 'Beranda', href: '/', icon: HomeIcon },
-    { name: 'Jelajahi', href: '/campaigns', icon: ChartBarIcon },
-    { name: 'Buat Kampanye', href: '/create', icon: PlusCircleIcon },
-    { name: 'Dashboard', href: '/dashboard', icon: UserIcon, requiresAuth: true },
+    { name: t('navbar.home'), href: '/', icon: HomeIcon },
+    { name: t('navbar.explore'), href: '/campaigns', icon: ChartBarIcon },
+    { name: t('navbar.create_campaign'), href: '/create', icon: PlusCircleIcon },
+    { name: t('navbar.dashboard'), href: '/dashboard', icon: UserIcon, requiresAuth: true },
   ];
 
   const isActive = (path) => {
@@ -29,6 +32,12 @@ const Navbar = () => {
       return location.pathname === '/';
     }
     return location.pathname.startsWith(path);
+  };
+
+  const toggleLanguage = () => {
+    const currentIndex = languages.indexOf(language);
+    const nextIndex = (currentIndex + 1) % languages.length;
+    setLanguage(languages[nextIndex]);
   };
 
   return (
@@ -49,11 +58,10 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-1">
             {navigation.map((item) => {
               const Icon = item.icon;
-              // Sembunyikan menu Dashboard jika belum terhubung
               if (item.requiresAuth && !isConnected) return null;
               return (
                 <Link
-                  key={item.name}
+                  key={item.href}
                   to={item.href}
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive(item.href)
@@ -68,8 +76,17 @@ const Navbar = () => {
             })}
           </div>
 
-          {/* Wallet Connect */}
-          <div className="hidden md:block">
+          {/* Language Switch + Wallet Connect */}
+          <div className="hidden md:flex items-center space-x-2">
+            {/* Language Toggle */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-crypto-blue hover:bg-crypto-light-blue transition-colors border border-gray-200"
+              title={languageNames[language]}
+            >
+              <GlobeAltIcon className="w-4 h-4" />
+              <span className="uppercase">{language}</span>
+            </button>
             <WalletConnect />
           </div>
 
@@ -78,7 +95,7 @@ const Navbar = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-600 hover:text-crypto-blue p-2"
-              aria-label={isMenuOpen ? 'Tutup menu' : 'Buka menu'}
+              aria-label={isMenuOpen ? t('navbar.close_menu') : t('navbar.open_menu')}
             >
               {isMenuOpen ? (
                 <XMarkIcon className="w-6 h-6" />
@@ -98,7 +115,7 @@ const Navbar = () => {
                 if (item.requiresAuth && !isConnected) return null;
                 return (
                   <Link
-                    key={item.name}
+                    key={item.href}
                     to={item.href}
                     onClick={() => setIsMenuOpen(false)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -112,6 +129,15 @@ const Navbar = () => {
                   </Link>
                 );
               })}
+              
+              {/* Mobile Language Toggle */}
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-crypto-blue hover:bg-crypto-light-blue transition-colors w-full"
+              >
+                <GlobeAltIcon className="w-5 h-5" />
+                <span>{languageNames[language]}</span>
+              </button>
               
               {/* Mobile Wallet Connect */}
               <div className="pt-4 border-t border-gray-100">

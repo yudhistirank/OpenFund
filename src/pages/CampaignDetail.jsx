@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
 import { CAMPAIGN_STATUS } from '../constants';
+import { useTranslation } from '../i18n';
 import { 
   formatWeiToEth, 
   formatDate, 
@@ -48,6 +49,7 @@ const CampaignDetail = () => {
     cancelCampaign
   } = useContract(signer, account);
   
+  const { t } = useTranslation();
   const [campaign, setCampaign] = useState(null);
   const [userPledge, setUserPledge] = useState('0');
   const [metadata, setMetadata] = useState(null);

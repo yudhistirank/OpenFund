@@ -4,6 +4,15 @@ import { CROWD_FUND_ABI, CONTRACT_ADDRESSES, APP_CONSTANTS, CAMPAIGN_STATUS } fr
 import { fetchFromIPFS } from '../utils/ipfs';
 import { getCampaignStatusLocal } from '../utils/validation';
 
+// Public RPC endpoints for read-only access (no wallet needed)
+const PUBLIC_RPC = {
+  ethereum_sepolia: 'https://ethereum-sepolia-rpc.publicnode.com',
+  base_sepolia: 'https://sepolia.base.org',
+};
+
+// Default network for read-only mode
+const DEFAULT_READ_ONLY_NETWORK = 'ethereum_sepolia';
+
 export const useContract = (signer, account) => {
   const [contract, setContract] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
@@ -11,50 +20,66 @@ export const useContract = (signer, account) => {
   const [userContributions, setUserContributions] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
-  // Initialize contract
+  // Initialize contract - supports both read-only (no wallet) and write (with wallet) modes
   useEffect(() => {
-    if (!signer || !account) {
-      setContract(null);
+    // If signer is available, use it for full read/write access
+    if (signer && account) {
+      setIsReadOnly(false);
+      try {
+        const provider = signer.provider;
+        provider.getNetwork().then((network) => {
+          const chainId = network.chainId.toString();
+          console.log('🔍 NETWORK DEBUG: Detected chain ID:', chainId);
+          
+          let contractAddress = CONTRACT_ADDRESSES.base_sepolia;
+          
+          if (chainId === '11155111') {
+            contractAddress = CONTRACT_ADDRESSES.ethereum_sepolia;
+          } else if (chainId === '84532') {
+            contractAddress = CONTRACT_ADDRESSES.base_sepolia;
+          }
+          
+          console.log('Initializing contract (write mode) on chain:', chainId, 'Address:', contractAddress);
+          
+          const crowdFundContract = new ethers.Contract(
+            contractAddress,
+            CROWD_FUND_ABI,
+            signer
+          );
+          
+          setContract(crowdFundContract);
+        }).catch((err) => {
+          console.error('Error getting network:', err);
+          setError('Failed to get network information');
+        });
+      } catch (err) {
+        console.error('Error initializing contract:', err);
+        setError('Failed to initialize contract');
+      }
       return;
     }
 
+    // No wallet connected — use read-only provider for public browsing
     try {
-      // Get current chain ID to determine contract address
-      const provider = signer.provider;
-      provider.getNetwork().then((network) => {
-        const chainId = network.chainId.toString();
-        console.log('🔍 NETWORK DEBUG: Detected chain ID:', chainId);
-        
-        let contractAddress = CONTRACT_ADDRESSES.base_sepolia; // Default to Base Sepolia
-        
-        if (chainId === '11155111') {
-          contractAddress = CONTRACT_ADDRESSES.ethereum_sepolia;
-          console.log('🔍 NETWORK DEBUG: Using Ethereum Sepolia contract:', contractAddress);
-        } else if (chainId === '84532') {
-          contractAddress = CONTRACT_ADDRESSES.base_sepolia;
-          console.log('🔍 NETWORK DEBUG: Using Base Sepolia contract:', contractAddress);
-        } else {
-          console.log('🔍 NETWORK DEBUG: Using default Base Sepolia contract:', contractAddress);
-          console.log('⚠️  WARNING: Unknown chain ID. Make sure you are on Base Sepolia (84532) or Ethereum Sepolia (11155111)');
-        }
-        
-        console.log('Initializing contract on chain:', chainId, 'Address:', contractAddress);
-        
-        const crowdFundContract = new ethers.Contract(
-          contractAddress,
-          CROWD_FUND_ABI,
-          signer
-        );
-        
-        setContract(crowdFundContract);
-      }).catch((err) => {
-        console.error('Error getting network:', err);
-        setError('Failed to get network information');
-      });
+      setIsReadOnly(true);
+      const rpcUrl = PUBLIC_RPC[DEFAULT_READ_ONLY_NETWORK];
+      const readOnlyProvider = new ethers.JsonRpcProvider(rpcUrl);
+      const contractAddress = CONTRACT_ADDRESSES[DEFAULT_READ_ONLY_NETWORK];
+      
+      console.log('Initializing contract (read-only mode) Address:', contractAddress);
+      
+      const readOnlyContract = new ethers.Contract(
+        contractAddress,
+        CROWD_FUND_ABI,
+        readOnlyProvider
+      );
+      
+      setContract(readOnlyContract);
     } catch (err) {
-      console.error('Error initializing contract:', err);
-      setError('Failed to initialize contract');
+      console.error('Error initializing read-only contract:', err);
+      // Don't set error for read-only failures — user might just not have wallet
     }
   }, [signer, account]);
 
@@ -429,6 +454,7 @@ export const useContract = (signer, account) => {
     userContributions,
     isLoading,
     error,
+    isReadOnly,
     
     // Campaign operations
     createCampaign,

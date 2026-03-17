@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
+import { useTranslation } from '../i18n';
 import WalletConnect from '../components/WalletConnect';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
@@ -14,86 +15,55 @@ import {
 
 const Landing = () => {
   const { isConnected, isLoading } = useWallet();
+  const { t } = useTranslation();
 
   const features = [
-    {
-      icon: SparklesIcon,
-      title: 'Pendanaan Transparan',
-      description: 'Semua transaksi dicatat di blockchain, memastikan transparansi dan akuntabilitas yang lengkap.'
-    },
-    {
-      icon: ShieldCheckIcon,
-      title: 'Aman & Tanpa Perantara',
-      description: 'Smart contract mengelola dana secara otomatis. Tidak ada pihak ketiga yang dapat ikut campur.'
-    },
-    {
-      icon: GlobeAltIcon,
-      title: 'Akses Global',
-      description: 'Siapa pun, di mana pun, dapat membuat atau mendukung kampanye menggunakan wallet kripto mereka.'
-    },
-    {
-      icon: UserGroupIcon,
-      title: 'Berbasis Komunitas',
-      description: 'Danai proyek yang berarti bagi Anda. Setiap kontribusi membantu mewujudkan ide menjadi kenyataan.'
-    },
-    {
-      icon: TrophyIcon,
-      title: 'Tanpa Biaya Keberhasilan',
-      description: 'Kami tidak mengambil potongan dari kampanye yang berhasil. Dana Anda langsung disalurkan ke pembuat kampanye.'
-    },
-    {
-      icon: CurrencyDollarIcon,
-      title: 'Pencairan Instan',
-      description: 'Dana otomatis didistribusikan ketika target kampanye tercapai.'
-    }
+    { icon: SparklesIcon,     title: t('landing.feature_transparent_title'), description: t('landing.feature_transparent_desc') },
+    { icon: ShieldCheckIcon,  title: t('landing.feature_secure_title'),      description: t('landing.feature_secure_desc') },
+    { icon: GlobeAltIcon,     title: t('landing.feature_global_title'),      description: t('landing.feature_global_desc') },
+    { icon: UserGroupIcon,    title: t('landing.feature_community_title'),   description: t('landing.feature_community_desc') },
+    { icon: TrophyIcon,       title: t('landing.feature_no_fee_title'),      description: t('landing.feature_no_fee_desc') },
+    { icon: CurrencyDollarIcon, title: t('landing.feature_instant_title'),   description: t('landing.feature_instant_desc') },
   ];
 
   const stats = [
-    { label: 'Kampanye Didanai', value: '1.200+' },
-    { label: 'Total Volume', value: '$2,5 Juta+' },
-    { label: 'Tingkat Keberhasilan', value: '94%' },
-    { label: 'Anggota Komunitas', value: '15.000+' }
+    { label: t('landing.stats_campaigns_funded'),   value: t('landing.stats_campaigns_funded_value') },
+    { label: t('landing.stats_total_volume'),        value: t('landing.stats_total_volume_value') },
+    { label: t('landing.stats_success_rate'),        value: t('landing.stats_success_rate_value') },
+    { label: t('landing.stats_community_members'),   value: t('landing.stats_community_members_value') },
   ];
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="large" text="Memuat OpenFund..." />
+        <LoadingSpinner size="large" text={t('landing.loading')} />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Bagian Hero */}
+      {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-crypto-light-blue to-white py-20 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              Wujudkan Ide Anda dengan{' '}
-              <span className="text-crypto-blue">Dukungan Komunitas</span>
+              {t('landing.hero_title')}{' '}
+              <span className="text-crypto-blue">{t('landing.hero_title_highlight')}</span>
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              Platform crowdfunding terdesentralisasi yang dibangun di atas Base.
-              Buat kampanye, kumpulkan dukungan komunitas, dan wujudkan ide Anda
-              dengan transparansi serta keamanan penuh.
+              {t('landing.hero_description')}
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               {isConnected ? (
-                <Link
-                  to="/campaigns"
-                  className="btn-primary text-lg px-8 py-3"
-                >
-                  Jelajahi Kampanye
+                <Link to="/campaigns" className="btn-primary text-lg px-8 py-3">
+                  {t('landing.explore_campaigns')}
                 </Link>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-4">
                   <WalletConnect className="text-lg px-8 py-3" />
-                  <Link
-                    to="/campaigns"
-                    className="btn-secondary text-lg px-8 py-3"
-                  >
-                    Lihat Kampanye
+                  <Link to="/campaigns" className="btn-secondary text-lg px-8 py-3">
+                    {t('landing.view_campaigns')}
                   </Link>
                 </div>
               )}
@@ -101,7 +71,7 @@ const Landing = () => {
           </div>
         </div>
 
-        {/* Efek Latar Belakang */}
+        {/* Background Effects */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-crypto-blue/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
           <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-crypto-blue/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
@@ -109,7 +79,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Bagian Statistik */}
+      {/* Stats Section */}
       <section className="py-16 bg-white">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
@@ -123,15 +93,15 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Bagian Fitur Unggulan */}
+      {/* Features Section */}
       <section className="py-20 bg-gray-50">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Mengapa Memilih OpenFund?
+              {t('landing.why_title')}
             </h2>
             <p className="mt-4 text-lg text-gray-600">
-              Rasakan masa depan crowdfunding dengan teknologi blockchain
+              {t('landing.why_description')}
             </p>
           </div>
           
@@ -143,12 +113,8 @@ const Landing = () => {
                   <div className="flex items-center justify-center w-12 h-12 bg-crypto-light-blue rounded-lg mb-4 group-hover:bg-crypto-blue transition-colors">
                     <Icon className="w-6 h-6 text-crypto-blue group-hover:text-white transition-colors" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-gray-600">
-                    {feature.description}
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                  <p className="text-gray-600">{feature.description}</p>
                 </div>
               );
             })}
@@ -156,77 +122,53 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Cara Kerja */}
+      {/* How it Works */}
       <section className="py-20 bg-white">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Cara Kerja OpenFund
+              {t('landing.how_title')}
             </h2>
             <p className="mt-4 text-lg text-gray-600">
-              Crowdfunding yang sederhana, aman, dan transparan dalam tiga langkah
+              {t('landing.how_description')}
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-crypto-blue text-white rounded-full text-2xl font-bold mx-auto mb-4">
-                1
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Buat Kampanye
-              </h3>
-              <p className="text-gray-600">
-                Tetapkan target pendanaan, tenggat waktu, dan detail kampanye Anda.
-                Tidak memerlukan proses persetujuan.
-              </p>
+              <div className="flex items-center justify-center w-16 h-16 bg-crypto-blue text-white rounded-full text-2xl font-bold mx-auto mb-4">1</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('landing.how_step1_title')}</h3>
+              <p className="text-gray-600">{t('landing.how_step1_desc')}</p>
             </div>
             
             <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-crypto-blue text-white rounded-full text-2xl font-bold mx-auto mb-4">
-                2
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Kumpulkan Dukungan
-              </h3>
-              <p className="text-gray-600">
-                Bagikan kampanye Anda kepada komunitas.
-                Pendukung berkontribusi menggunakan wallet kripto mereka.
-              </p>
+              <div className="flex items-center justify-center w-16 h-16 bg-crypto-blue text-white rounded-full text-2xl font-bold mx-auto mb-4">2</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('landing.how_step2_title')}</h3>
+              <p className="text-gray-600">{t('landing.how_step2_desc')}</p>
             </div>
             
             <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-crypto-blue text-white rounded-full text-2xl font-bold mx-auto mb-4">
-                3
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Terima Dana
-              </h3>
-              <p className="text-gray-600">
-                Ketika target tercapai, dana secara otomatis
-                dikirim ke wallet pembuat kampanye.
-              </p>
+              <div className="flex items-center justify-center w-16 h-16 bg-crypto-blue text-white rounded-full text-2xl font-bold mx-auto mb-4">3</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('landing.how_step3_title')}</h3>
+              <p className="text-gray-600">{t('landing.how_step3_desc')}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Bagian CTA */}
+      {/* CTA Section */}
       <section className="py-20 bg-crypto-blue">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Siap Memulai Kampanye Anda?
+            {t('landing.cta_title')}
           </h2>
           <p className="mt-4 text-lg text-crypto-light-blue">
-            Bergabunglah dengan ribuan kreator yang telah berhasil mendanai proyek mereka
+            {t('landing.cta_description')}
           </p>
           <div className="mt-8 flex justify-center">
             {isConnected ? (
-              <Link
-                to="/create"
-                className="bg-white text-crypto-blue px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-              >
-                Buat Kampanye
+              <Link to="/create" className="bg-white text-crypto-blue px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                {t('landing.cta_button')}
               </Link>
             ) : (
               <WalletConnect className="bg-white text-crypto-blue px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors" />
@@ -234,7 +176,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-
     </div>
   );
 };

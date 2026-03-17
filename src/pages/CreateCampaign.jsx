@@ -5,6 +5,7 @@ import { useContract } from '../hooks/useContract';
 import { validateCampaignForm } from '../utils/validation';
 import { uploadToIPFS, uploadImageToIPFS, createCampaignMetadata } from '../utils/ipfs';
 import { getExplorerUrl } from '../utils/network';
+import { useTranslation } from '../i18n';
 import TransactionStatus from '../components/TransactionStatus';
 import LoadingSpinner from '../components/LoadingSpinner';
 import WalletConnect from '../components/WalletConnect';
@@ -18,6 +19,7 @@ import {
 
 const CreateCampaign = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isConnected, chainId, signer, account } = useWallet();
   const { createCampaign } = useContract(signer, account);
 
@@ -68,10 +70,10 @@ const CreateCampaign = () => {
             <LockClosedIcon className="w-8 h-8 text-crypto-blue" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">
-            Koneksi Wallet Diperlukan
+            {t('create.wallet_required_title')}
           </h2>
           <p className="text-gray-600 mb-6">
-            Anda perlu menghubungkan wallet untuk membuat kampanye. Silakan hubungkan wallet Anda terlebih dahulu.
+            {t('create.wallet_required_desc')}
           </p>
           <div className="flex justify-center">
             <WalletConnect className="w-full justify-center" />
@@ -270,10 +272,10 @@ const CreateCampaign = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Buat Kampanye Baru
+            {t('create.title')}
           </h1>
           <p className="text-lg text-gray-600">
-            Luncurkan kampanye crowdfunding Anda dan kumpulkan dukungan dari komunitas
+            {t('create.subtitle')}
           </p>
         </div>
 
@@ -282,7 +284,7 @@ const CreateCampaign = () => {
             {/* Judul Kampanye */}
             <div className="mb-6">
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Judul Kampanye *
+                {t('create.campaign_title_label')}
               </label>
               <div className="relative">
                 <DocumentTextIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -292,7 +294,7 @@ const CreateCampaign = () => {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="Masukkan judul kampanye Anda"
+                  placeholder={t('create.campaign_title_placeholder')}
                   className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-crypto-blue focus:border-transparent ${
                     errors.title ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -306,7 +308,7 @@ const CreateCampaign = () => {
             {/* Deskripsi Kampanye */}
             <div className="mb-6">
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Deskripsi *
+                {t('create.description_label')}
               </label>
               <textarea
                 id="description"
@@ -314,7 +316,7 @@ const CreateCampaign = () => {
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={6}
-                placeholder="Deskripsikan kampanye Anda, mengapa itu penting, dan bagaimana dana akan digunakan"
+                placeholder={t('create.description_placeholder')}
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-crypto-blue focus:border-transparent resize-none ${
                   errors.description ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -327,7 +329,7 @@ const CreateCampaign = () => {
             {/* Target Pendanaan */}
             <div className="mb-6">
               <label htmlFor="goal" className="block text-sm font-medium text-gray-700 mb-2">
-                Target Pendanaan (ETH) *
+                {t('create.goal_label')}
               </label>
               <div className="relative">
                 <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -349,7 +351,7 @@ const CreateCampaign = () => {
                 <p className="mt-1 text-sm text-red-600">{errors.goal}</p>
               )}
               <p className="mt-1 text-sm text-gray-500">
-                Target minimum: 0,01 ETH
+                {t('create.goal_min_hint')}
               </p>
             </div>
 
