@@ -96,28 +96,6 @@ The frontend integrates with the CrowdFund.sol smart contract with the following
 - `claim(campaignId)` - Creator claims successful campaign funds
 - `refund(campaignId)` - Contributor claims refund for failed campaign
 
-## 🎨 Design System
-
-### Color Palette (Base Network Theme)
-- **Primary**: `crypto-blue` (#0052FF)
-- **Light**: `crypto-light-blue` (#E6F3FF)
-- **Dark**: `crypto-blue-dark` (#003CCB)
-- **Success**: Green (#10B981)
-- **Error**: Red (#EF4444)
-- **Warning**: Orange (#F59E0B)
-
-### Typography
-- **Primary Font**: Inter
-- **Secondary Font**: Roboto
-- **Headings**: Bold with proper hierarchy
-- **Body**: Regular weight with optimized line height
-
-### Components
-- **Buttons**: Consistent styles with primary/secondary variants
-- **Cards**: Clean borders with subtle shadows and hover effects
-- **Forms**: Proper validation states and error messaging
-- **Navigation**: Sticky header with responsive mobile menu
-
 ## 🚦 Getting Started
 
 ### Prerequisites
@@ -247,14 +225,6 @@ To deploy the CrowdFund.sol contract:
 - **Performance**: Optimized for mobile browsers
 - **Wallet Integration**: MetaMask mobile app compatibility
 
-## 🚀 Performance Optimizations
-
-- **Code Splitting**: Dynamic imports for route-based splitting
-- **Memoization**: React.memo for expensive components
-- **Lazy Loading**: On-demand campaign loading
-- **Image Optimization**: Efficient image handling
-- **Bundle Analysis**: Optimized build size
-
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -267,16 +237,9 @@ To deploy the CrowdFund.sol contract:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🆘 Support
-
-For support, please contact:
-- Email: support@openfund.io
-- Discord: OpenFund Community
-- Documentation: [docs.openfund.io](https://docs.openfund.io)
-
 ## 🔄 Changelog
 
-### Version 1.0.0 (2025-11-29)
+### Version 1.0.0
 - Initial release
 - Full campaign lifecycle support
 - MetaMask integration
@@ -286,5 +249,3 @@ For support, please contact:
 - Transaction management
 
 ---
-
-Built with ❤️ by the OpenFund team
