@@ -216,9 +216,10 @@ const CreateCampaign = () => {
 
           console.log('Kampanye berhasil dibuat!');
 
+          // Redirect to transaction detail page
           setTimeout(() => {
-            navigate('/campaigns');
-          }, 2000);
+            navigate(`/tx/${result.hash}`);
+          }, 1500);
         } else {
           throw new Error('Transaksi selesai tetapi tidak ada hash yang diterima');
         }

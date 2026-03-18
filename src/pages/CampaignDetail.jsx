@@ -23,6 +23,7 @@ import { getExplorerUrl } from '../utils/network';
 import TransactionStatus from '../components/TransactionStatus';
 import LoadingSpinner from '../components/LoadingSpinner';
 import WalletConnect from '../components/WalletConnect';
+import DonorRank from '../components/DonorRank';
 import {
   CurrencyDollarIcon,
   UserIcon,
@@ -46,7 +47,8 @@ const CampaignDetail = () => {
     unpledgeFromCampaign, 
     claimFunds, 
     getRefund,
-    cancelCampaign
+    cancelCampaign,
+    getCampaignDonors
   } = useContract(signer, account);
   
   const { t } = useTranslation();
@@ -64,12 +66,27 @@ const CampaignDetail = () => {
     action: null
   });
   const [isLiked, setIsLiked] = useState(false);
+  const [donors, setDonors] = useState([]);
+  const [loadingDonors, setLoadingDonors] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadCampaign();
+      loadDonors();
     }
   }, [id, getCampaign]);
+
+  const loadDonors = async () => {
+    try {
+      setLoadingDonors(true);
+      const donorData = await getCampaignDonors(id);
+      setDonors(donorData);
+    } catch (error) {
+      console.error('Error loading donors:', error);
+    } finally {
+      setLoadingDonors(false);
+    }
+  };
 
   useEffect(() => {
     if (campaign && isConnected && account) {
@@ -131,14 +148,11 @@ const CampaignDetail = () => {
     try {
       const result = await pledgeToCampaign(id, pledgeAmount);
       
-      setTxStatus(prev => ({ 
-        ...prev, 
-        status: 'success',
-        hash: result?.hash || null
-      }));
       setPledgeAmount('');
-      await loadCampaign();
-      await loadUserContribution();
+      // Redirect to transaction detail page
+      if (result?.hash) {
+        navigate(`/tx/${result.hash}`);
+      }
     } catch (error) {
       console.error('Error pledging:', error);
       setTxStatus(prev => ({ ...prev, status: 'error', message: error.message }));
@@ -160,14 +174,10 @@ const CampaignDetail = () => {
     try {
       const result = await unpledgeFromCampaign(id, amount);
       
-      setTxStatus(prev => ({ 
-        ...prev, 
-        status: 'success',
-        hash: result?.hash || null
-      }));
       setUnpledgeAmount('');
-      await loadCampaign();
-      await loadUserContribution();
+      if (result?.hash) {
+        navigate(`/tx/${result.hash}`);
+      }
     } catch (error) {
       console.error('Error unpledging:', error);
       setTxStatus(prev => ({ ...prev, status: 'error', message: error.message }));
@@ -187,12 +197,9 @@ const CampaignDetail = () => {
     try {
       const result = await claimFunds(id);
       
-      setTxStatus(prev => ({ 
-        ...prev, 
-        status: 'success',
-        hash: result?.hash || null
-      }));
-      await loadCampaign();
+      if (result?.hash) {
+        navigate(`/tx/${result.hash}`);
+      }
     } catch (error) {
       console.error('Error claiming:', error);
       setTxStatus(prev => ({ ...prev, status: 'error', message: error.message }));
@@ -212,13 +219,9 @@ const CampaignDetail = () => {
     try {
       const result = await getRefund(id);
       
-      setTxStatus(prev => ({ 
-        ...prev, 
-        status: 'success',
-        hash: result?.hash || null
-      }));
-      await loadCampaign();
-      await loadUserContribution();
+      if (result?.hash) {
+        navigate(`/tx/${result.hash}`);
+      }
     } catch (error) {
       console.error('Error refunding:', error);
       setTxStatus(prev => ({ ...prev, status: 'error', message: error.message }));
@@ -238,12 +241,9 @@ const CampaignDetail = () => {
     try {
       const result = await cancelCampaign(id);
       
-      setTxStatus(prev => ({ 
-        ...prev, 
-        status: 'success',
-        hash: result?.hash || null
-      }));
-      await loadCampaign();
+      if (result?.hash) {
+        navigate(`/tx/${result.hash}`);
+      }
     } catch (error) {
       console.error('Error cancelling:', error);
       setTxStatus(prev => ({ ...prev, status: 'error', message: error.message }));
@@ -462,11 +462,8 @@ const CampaignDetail = () => {
               </div>
             )}
 
-            {/* Updates Section */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Pembaruan Kampanye</h3>
-              <p className="text-gray-500 text-sm">Belum ada pembaruan. Kunjungi kembali nanti!</p>
-            </div>
+            {/* Donor Ranking (from blockchain events) */}
+            <DonorRank donors={donors} isLoading={loadingDonors} />
           </div>
 
           {/* Sidebar */}

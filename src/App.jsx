@@ -12,6 +12,7 @@ import Landing from './pages/Landing';
 import HomePage from './pages/HomePage';
 import CreateCampaign from './pages/CreateCampaign';
 import CampaignDetail from './pages/CampaignDetail';
+import TransactionDetail from './pages/TransactionDetail';
 import UserDashboard from './pages/UserDashboard';
 
 // Styles
@@ -31,6 +32,7 @@ function App() {
             <Route path="/campaigns" element={<HomePage />} />
             <Route path="/create" element={<CreateCampaign />} />
             <Route path="/campaign/:id" element={<CampaignDetail />} />
+            <Route path="/tx/:hash" element={<TransactionDetail />} />
             <Route
               path="/dashboard"
               element={

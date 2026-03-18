@@ -430,6 +430,168 @@ export const useContract = (signer, account) => {
     }
   }, [contract, account]);
 
+  /**
+   * Fetch donor rankings for a campaign from FundCampaign events (on-chain data).
+   * Aggregates donations per address and returns sorted list (highest first).
+   * @param {number|string} campaignId - Campaign ID to query
+   * @returns {Promise<Array<{address: string, totalAmount: string, donationCount: number}>>}
+   */
+  const getCampaignDonors = useCallback(async (campaignId) => {
+    if (!contract || !campaignId) return [];
+
+    try {
+      // Query FundCampaign events filtered by campaign ID (indexed)
+      const filter = contract.filters.FundCampaign(campaignId);
+      const events = await contract.queryFilter(filter, 0, 'latest');
+
+      // Aggregate donations per address
+      const donorMap = {};
+      for (const event of events) {
+        const caller = event.args.caller;
+        const amount = event.args.amount;
+        
+        if (!donorMap[caller]) {
+          donorMap[caller] = { totalAmount: 0n, donationCount: 0, txHashes: [] };
+        }
+        donorMap[caller].totalAmount += amount;
+        donorMap[caller].donationCount += 1;
+        donorMap[caller].txHashes.push(event.transactionHash);
+      }
+
+      // Convert to sorted array (highest donation first)
+      const donors = Object.entries(donorMap)
+        .map(([address, data]) => ({
+          address,
+          totalAmount: data.totalAmount.toString(),
+          donationCount: data.donationCount,
+          txHashes: data.txHashes,
+        }))
+        .sort((a, b) => {
+          const diff = BigInt(b.totalAmount) - BigInt(a.totalAmount);
+          return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+        });
+
+      return donors;
+    } catch (err) {
+      console.error('Error fetching campaign donors:', err);
+      return [];
+    }
+  }, [contract]);
+
+  /**
+   * Fetch all transaction events related to the connected user.
+   * Returns a list of all user's on-chain activity.
+   * @returns {Promise<Array<{type: string, campaignId: string, amount: string, txHash: string, blockNumber: number}>>}
+   */
+  const getUserTransactionHistory = useCallback(async () => {
+    if (!contract || !account) return [];
+
+    try {
+      const allEvents = [];
+
+      // FundCampaign events (user = caller) — donations made
+      const fundFilter = contract.filters.FundCampaign(null, account);
+      const fundEvents = await contract.queryFilter(fundFilter, 0, 'latest');
+      for (const e of fundEvents) {
+        allEvents.push({
+          type: 'fund',
+          campaignId: e.args.id.toString(),
+          amount: e.args.amount.toString(),
+          txHash: e.transactionHash,
+          blockNumber: e.blockNumber,
+        });
+      }
+
+      // WithdrawPledge events (user = caller) — withdrawals
+      const withdrawFilter = contract.filters.WithdrawPledge(null, account);
+      const withdrawEvents = await contract.queryFilter(withdrawFilter, 0, 'latest');
+      for (const e of withdrawEvents) {
+        allEvents.push({
+          type: 'withdraw',
+          campaignId: e.args.id.toString(),
+          amount: e.args.amount.toString(),
+          txHash: e.transactionHash,
+          blockNumber: e.blockNumber,
+        });
+      }
+
+      // RefundContribution events (user = caller) — refunds received
+      const refundFilter = contract.filters.RefundContribution(null, account);
+      const refundEvents = await contract.queryFilter(refundFilter, 0, 'latest');
+      for (const e of refundEvents) {
+        allEvents.push({
+          type: 'refund',
+          campaignId: e.args.id.toString(),
+          amount: e.args.amount.toString(),
+          txHash: e.transactionHash,
+          blockNumber: e.blockNumber,
+        });
+      }
+
+      // ClaimFunds events — check if user is creator who claimed
+      const claimFilter = contract.filters.ClaimFunds();
+      const claimEvents = await contract.queryFilter(claimFilter, 0, 'latest');
+      for (const e of claimEvents) {
+        // Check if the campaign creator is the current user
+        try {
+          const campaign = await contract.campaigns(e.args.id);
+          if (campaign.creator.toLowerCase() === account.toLowerCase()) {
+            allEvents.push({
+              type: 'claim',
+              campaignId: e.args.id.toString(),
+              amount: e.args.amount.toString(),
+              txHash: e.transactionHash,
+              blockNumber: e.blockNumber,
+            });
+          }
+        } catch {
+          // skip if campaign lookup fails
+        }
+      }
+
+      // CreateCampaign events (user = creator)
+      const createFilter = contract.filters.CreateCampaign(null, account);
+      const createEvents = await contract.queryFilter(createFilter, 0, 'latest');
+      for (const e of createEvents) {
+        allEvents.push({
+          type: 'create',
+          campaignId: e.args.id.toString(),
+          amount: e.args.goal.toString(),
+          txHash: e.transactionHash,
+          blockNumber: e.blockNumber,
+        });
+      }
+
+      // CancelCampaign events
+      const cancelFilter = contract.filters.CancelCampaign();
+      const cancelEvents = await contract.queryFilter(cancelFilter, 0, 'latest');
+      for (const e of cancelEvents) {
+        try {
+          const campaign = await contract.campaigns(e.args.id);
+          if (campaign.creator.toLowerCase() === account.toLowerCase()) {
+            allEvents.push({
+              type: 'cancel',
+              campaignId: e.args.id.toString(),
+              amount: '0',
+              txHash: e.transactionHash,
+              blockNumber: e.blockNumber,
+            });
+          }
+        } catch {
+          // skip
+        }
+      }
+
+      // Sort by block number descending (newest first)
+      allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
+
+      return allEvents;
+    } catch (err) {
+      console.error('Error fetching user transaction history:', err);
+      return [];
+    }
+  }, [contract, account]);
+
   // Auto-fetch data when contract is ready
   useEffect(() => {
     if (contract) {
@@ -472,6 +634,10 @@ export const useContract = (signer, account) => {
     getUserPledgedAmount,
     getCampaignMetadata,
     getCampaignWithMetadata,
+    
+    // Event-based data (on-chain)
+    getCampaignDonors,
+    getUserTransactionHistory,
     
     // Computed values
     totalCampaigns: campaigns.length,
