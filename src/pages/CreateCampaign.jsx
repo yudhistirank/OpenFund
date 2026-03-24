@@ -467,6 +467,9 @@ const CreateCampaign = () => {
                       <span className="mt-1 block text-sm text-gray-500">
                         PNG, JPG, GIF hingga 5MB
                       </span>
+                      <span className="mt-1 block text-xs text-gray-400">
+                        Rasio 16:9 • Ukuran ideal: 1200×675px (min 800×450px)
+                      </span>
                     </label>
                     <input
                       id="image-upload"

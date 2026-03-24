@@ -165,7 +165,7 @@ const Footer = () => {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-600 text-sm">
-              © {currentYear} OpenFund. V 1.1.1
+              © {currentYear} OpenFund. V 1.1.4
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <span className="text-xs text-gray-500">
@@ -174,7 +174,7 @@ const Footer = () => {
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span className="text-xs text-gray-500">
-                  Dukungan Multi-Jaringan
+                  Dukungan Layer 2 untuk Biaya Gas Rendah dan Transaksi Cepat
                 </span>
               </div>
             </div>

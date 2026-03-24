@@ -239,13 +239,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🔄 Changelog
 
-### Version 1.0.0
-- Initial release
-- Full campaign lifecycle support
-- MetaMask integration
-- Responsive design
-- Smart contract integration
-- User dashboard
+### Version 1.1.4
+- Connected with IPFS (Pinata)
+- More Responsive design
 - Transaction management
+- Detail transaction
+- Success, pending, and error states
+- Transaction hash display
+- Explorer link integration
+- Switch language ID/ENG
+- Visibility "jelajah" public
+- Change donor rank to list donor
+- Banner Image Size Guidelines
 
 ---

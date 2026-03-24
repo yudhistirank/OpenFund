@@ -431,10 +431,10 @@ export const useContract = (signer, account) => {
   }, [contract, account]);
 
   /**
-   * Fetch donor rankings for a campaign from FundCampaign events (on-chain data).
-   * Aggregates donations per address and returns sorted list (highest first).
+   * Fetch individual donation list for a campaign from FundCampaign events (on-chain data).
+   * Returns each donation as a separate entry, sorted by amount (highest first).
    * @param {number|string} campaignId - Campaign ID to query
-   * @returns {Promise<Array<{address: string, totalAmount: string, donationCount: number}>>}
+   * @returns {Promise<Array<{address: string, amount: string, txHash: string, blockNumber: number}>>}
    */
   const getCampaignDonors = useCallback(async (campaignId) => {
     if (!contract || !campaignId) return [];
@@ -444,34 +444,21 @@ export const useContract = (signer, account) => {
       const filter = contract.filters.FundCampaign(campaignId);
       const events = await contract.queryFilter(filter, 0, 'latest');
 
-      // Aggregate donations per address
-      const donorMap = {};
-      for (const event of events) {
-        const caller = event.args.caller;
-        const amount = event.args.amount;
-        
-        if (!donorMap[caller]) {
-          donorMap[caller] = { totalAmount: 0n, donationCount: 0, txHashes: [] };
-        }
-        donorMap[caller].totalAmount += amount;
-        donorMap[caller].donationCount += 1;
-        donorMap[caller].txHashes.push(event.transactionHash);
-      }
+      // Return individual donation events (not aggregated)
+      const donations = events.map((event) => ({
+        address: event.args.caller,
+        amount: event.args.amount.toString(),
+        txHash: event.transactionHash,
+        blockNumber: event.blockNumber,
+      }));
 
-      // Convert to sorted array (highest donation first)
-      const donors = Object.entries(donorMap)
-        .map(([address, data]) => ({
-          address,
-          totalAmount: data.totalAmount.toString(),
-          donationCount: data.donationCount,
-          txHashes: data.txHashes,
-        }))
-        .sort((a, b) => {
-          const diff = BigInt(b.totalAmount) - BigInt(a.totalAmount);
-          return diff > 0n ? 1 : diff < 0n ? -1 : 0;
-        });
+      // Sort by amount descending (highest donation first)
+      donations.sort((a, b) => {
+        const diff = BigInt(b.amount) - BigInt(a.amount);
+        return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+      });
 
-      return donors;
+      return donations;
     } catch (err) {
       console.error('Error fetching campaign donors:', err);
       return [];

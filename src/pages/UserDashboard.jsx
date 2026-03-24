@@ -24,16 +24,31 @@ import {
   GiftIcon,
   NoSymbolIcon,
   DocumentTextIcon,
-  ArrowTopRightOnSquareIcon
+  ArrowTopRightOnSquareIcon,
+  BanknotesIcon,
+  ArrowUturnLeftIcon,
+  ArrowPathIcon,
+  SparklesIcon,
+  RocketLaunchIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
+const TX_TYPE_ICONS = {
+  fund:     BanknotesIcon,
+  withdraw: ArrowUturnLeftIcon,
+  refund:   ArrowPathIcon,
+  claim:    SparklesIcon,
+  create:   RocketLaunchIcon,
+  cancel:   XMarkIcon,
+};
+
 const TX_TYPE_CONFIG = {
-  fund:     { label: 'Donasi',          color: 'text-green-600',  bg: 'bg-green-50',  icon: '💰' },
-  withdraw: { label: 'Tarik Donasi',    color: 'text-orange-600', bg: 'bg-orange-50', icon: '↩️' },
-  refund:   { label: 'Refund',          color: 'text-blue-600',   bg: 'bg-blue-50',   icon: '🔄' },
-  claim:    { label: 'Cairkan Dana',    color: 'text-purple-600', bg: 'bg-purple-50', icon: '🎉' },
-  create:   { label: 'Buat Kampanye',   color: 'text-crypto-blue',bg: 'bg-crypto-light-blue', icon: '🚀' },
-  cancel:   { label: 'Batal Kampanye',  color: 'text-gray-600',   bg: 'bg-gray-100',  icon: '❌' },
+  fund:     { label: 'Donasi',          color: 'text-green-600',  bg: 'bg-green-50' },
+  withdraw: { label: 'Tarik Donasi',    color: 'text-orange-600', bg: 'bg-orange-50' },
+  refund:   { label: 'Refund',          color: 'text-blue-600',   bg: 'bg-blue-50' },
+  claim:    { label: 'Cairkan Dana',    color: 'text-purple-600', bg: 'bg-purple-50' },
+  create:   { label: 'Buat Kampanye',   color: 'text-crypto-blue',bg: 'bg-crypto-light-blue' },
+  cancel:   { label: 'Batal Kampanye',  color: 'text-gray-600',   bg: 'bg-gray-100' },
 };
 
 const UserDashboard = () => {
@@ -304,7 +319,14 @@ const UserDashboard = () => {
                     return (
                       <div key={`${tx.txHash}-${index}`} className={`flex items-center justify-between p-4 rounded-lg border ${config.bg} border-gray-100`}>
                         <div className="flex items-center space-x-3">
-                          <span className="text-xl">{config.icon}</span>
+                          {(() => {
+                            const TxIcon = TX_TYPE_ICONS[tx.type] || BanknotesIcon;
+                            return (
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${config.bg} border border-gray-200`}>
+                                <TxIcon className={`w-5 h-5 ${config.color}`} />
+                              </div>
+                            );
+                          })()}
                           <div>
                             <p className={`text-sm font-medium ${config.color}`}>{config.label}</p>
                             <p className="text-xs text-gray-500">

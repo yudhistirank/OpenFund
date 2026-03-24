@@ -1,26 +1,24 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ethers } from 'ethers';
 import { useTranslation } from '../i18n';
 import { formatAddress } from '../utils/format';
-import { getExplorerUrl } from '../utils/network';
-import { useWallet } from '../hooks/useWallet';
 import {
-  TrophyIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
-
-const RANK_MEDALS = ['🥇', '🥈', '🥉'];
+import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
 const DonorRank = ({ donors = [], isLoading = false }) => {
   const { t } = useTranslation();
-  const { chainId } = useWallet();
 
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <TrophyIcon className="w-5 h-5 text-yellow-500" />
-          {t('detail.donor_rank_title') || 'Donor Ranking'}
+          <UserGroupIcon className="w-5 h-5 text-crypto-blue" />
+          Donatur
         </h3>
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-crypto-blue"></div>
@@ -33,8 +31,8 @@ const DonorRank = ({ donors = [], isLoading = false }) => {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <TrophyIcon className="w-5 h-5 text-yellow-500" />
-          {t('detail.donor_rank_title') || 'Donor Ranking'}
+          <UserGroupIcon className="w-5 h-5 text-crypto-blue" />
+          Donatur
         </h3>
         <p className="text-gray-500 text-sm text-center py-4">
           {t('detail.no_donors') || 'No donors yet. Be the first to contribute!'}
@@ -46,22 +44,20 @@ const DonorRank = ({ donors = [], isLoading = false }) => {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <TrophyIcon className="w-5 h-5 text-yellow-500" />
-        {t('detail.donor_rank_title') || 'Donor Ranking'}
+        <UserGroupIcon className="w-5 h-5 text-crypto-blue" />
+        Donatur
         <span className="text-sm font-normal text-gray-500 ml-auto">
-          {donors.length} {t('detail.donor_count') || 'donors'}
+          {donors.length} {donors.length === 1 ? 'donation' : 'donations'}
         </span>
       </h3>
 
-      <div className="space-y-3">
-        {donors.map((donor, index) => {
-          const amountEth = parseFloat(ethers.formatEther(donor.totalAmount)).toFixed(4);
-          const explorerUrl = chainId ? getExplorerUrl(chainId, 'address', donor.address) : '#';
-          const medal = index < 3 ? RANK_MEDALS[index] : null;
+      <div className="space-y-2">
+        {donors.map((donation, index) => {
+          const amountEth = parseFloat(ethers.formatEther(donation.amount)).toFixed(4);
 
           return (
             <div
-              key={donor.address}
+              key={`${donation.txHash}-${index}`}
               className={`flex items-center justify-between p-3 rounded-lg border ${
                 index === 0
                   ? 'bg-yellow-50 border-yellow-200'
@@ -73,35 +69,41 @@ const DonorRank = ({ donors = [], isLoading = false }) => {
               }`}
             >
               <div className="flex items-center space-x-3">
-                {/* Rank */}
-                <div className="w-8 text-center">
-                  {medal ? (
-                    <span className="text-xl">{medal}</span>
+                {/* Rank indicator */}
+                <div className="w-8 text-center flex-shrink-0">
+                  {index < 3 ? (
+                    <StarSolidIcon className={`w-5 h-5 mx-auto ${
+                      index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-400'
+                    }`} />
                   ) : (
-                    <span className="text-sm font-medium text-gray-400">#{index + 1}</span>
+                    <span className="text-xs font-medium text-gray-400">#{index + 1}</span>
                   )}
                 </div>
 
-                {/* Address */}
+                {/* Donor address + tx link */}
                 <div>
-                  <a
-                    href={explorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-mono font-medium text-gray-900 hover:text-crypto-blue flex items-center gap-1"
-                  >
-                    {formatAddress(donor.address, 6)}
-                    <ArrowTopRightOnSquareIcon className="w-3 h-3 text-gray-400" />
-                  </a>
-                  <p className="text-xs text-gray-500">
-                    {donor.donationCount} {donor.donationCount === 1 ? 'donation' : 'donations'}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-mono font-medium text-gray-900">
+                      {formatAddress(donation.address, 6)}
+                    </span>
+                    <Link
+                      to={`/tx/${donation.txHash}`}
+                      className="text-gray-400 hover:text-crypto-blue"
+                      title="View transaction detail"
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                  <p className="text-xs text-gray-400 font-mono">
+                    Block #{donation.blockNumber}
                   </p>
                 </div>
               </div>
 
               {/* Amount */}
-              <div className="text-right">
-                <p className="text-sm font-bold text-crypto-blue">{amountEth} ETH</p>
+              <div className="text-right flex items-center gap-1.5">
+                <CurrencyDollarIcon className="w-4 h-4 text-crypto-blue" />
+                <span className="text-sm font-bold text-crypto-blue">{amountEth} ETH</span>
               </div>
             </div>
           );
