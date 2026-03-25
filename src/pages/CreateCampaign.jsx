@@ -479,31 +479,6 @@ const CreateCampaign = () => {
                       onChange={handleImageChange}
                       className="sr-only"
                     />
-                    <div className="mt-4">
-                      <span className="text-gray-500">atau</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {!imageFile && (
-                <div className="mt-4">
-                  <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-2">
-                    URL Gambar (Alternatif)
-                  </label>
-                  <div className="relative">
-                    <PhotoIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="url"
-                      id="imageUrl"
-                      name="imageUrl"
-                      value={formData.imageUrl}
-                      onChange={handleInputChange}
-                      placeholder="https://contoh.com/gambar.jpg"
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-crypto-blue focus:border-transparent ${
-                        errors.imageUrl ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    />
                   </div>
                 </div>
               )}

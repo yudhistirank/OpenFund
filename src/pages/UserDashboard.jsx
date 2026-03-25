@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ethers } from 'ethers';
 import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
 import { CAMPAIGN_STATUS } from '../constants';
 import { useTranslation } from '../i18n';
+import { fetchFromIPFS } from '../utils/ipfs';
 import {
   formatWeiToEth,
   formatDate,
@@ -65,6 +66,28 @@ const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [txHistory, setTxHistory] = useState([]);
   const [loadingTxHistory, setLoadingTxHistory] = useState(false);
+  const [campaignNames, setCampaignNames] = useState({}); // { campaignId: "name" }
+
+  // Fetch campaign names from IPFS metadata
+  useEffect(() => {
+    const allCampaigns = [...new Set([...userCampaigns, ...campaigns.filter(c => userContributions[c.id])])];
+    allCampaigns.forEach(async (campaign) => {
+      if (campaign.metadata && !campaignNames[campaign.id]) {
+        try {
+          const meta = await fetchFromIPFS(campaign.metadata);
+          if (meta?.title) {
+            setCampaignNames(prev => ({ ...prev, [campaign.id]: meta.title }));
+          }
+        } catch {
+          // ignore metadata fetch errors
+        }
+      }
+    });
+  }, [userCampaigns, campaigns, userContributions]);
+
+  const getCampaignName = useCallback((id) => {
+    return campaignNames[id] || t('common.campaign_hash', { id });
+  }, [campaignNames, t]);
 
   useEffect(() => {
     if (activeTab === 'history' && account && getUserTransactionHistory) {
@@ -188,7 +211,7 @@ const UserDashboard = () => {
                   {userCampaigns.slice(0, 5).map((campaign) => (
                     <div key={campaign.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{t('common.campaign_hash', { id: campaign.id })}</p>
+                        <p className="text-sm font-medium text-gray-900">{getCampaignName(campaign.id)}</p>
                         <p className="text-xs text-gray-500">{t('common.goal')}: {formatCurrency(parseFloat(formatWeiToEth(campaign.goal)))}</p>
                       </div>
                       <div className="flex items-center space-x-3">
@@ -223,7 +246,7 @@ const UserDashboard = () => {
                       <div key={campaign.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h4 className="text-lg font-medium text-gray-900">{t('common.campaign_hash', { id: campaign.id })}</h4>
+                            <h4 className="text-lg font-medium text-gray-900">{getCampaignName(campaign.id)}</h4>
                             <p className="text-sm text-gray-600 mt-1">{formatDate(campaign.startAt)} — {formatDate(campaign.endAt)}</p>
                           </div>
                           {getStatusBadge(campaign)}
@@ -266,7 +289,7 @@ const UserDashboard = () => {
                     <div key={campaign.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h4 className="text-lg font-medium text-gray-900">{t('common.campaign_hash', { id: campaign.id })}</h4>
+                          <h4 className="text-lg font-medium text-gray-900">{getCampaignName(campaign.id)}</h4>
                           <p className="text-sm text-gray-600">{t('common.deadline')}: {formatDate(campaign.endAt)}</p>
                         </div>
                         <div className="text-right">
@@ -330,7 +353,7 @@ const UserDashboard = () => {
                           <div>
                             <p className={`text-sm font-medium ${config.color}`}>{config.label}</p>
                             <p className="text-xs text-gray-500">
-                              {t('common.campaign_hash', { id: tx.campaignId })} • Block #{tx.blockNumber}
+                              {getCampaignName(tx.campaignId)} • Block #{tx.blockNumber}
                             </p>
                           </div>
                         </div>

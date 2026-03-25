@@ -239,7 +239,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🔄 Changelog
 
-### Version 1.1.4
+### Version 1.1.5
 - Connected with IPFS (Pinata)
 - More Responsive design
 - Transaction management
@@ -251,5 +251,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Visibility "jelajah" public
 - Change donor rank to list donor
 - Banner Image Size Guidelines
+- Dashboard campaign from IPFS metadata
 
 ---
