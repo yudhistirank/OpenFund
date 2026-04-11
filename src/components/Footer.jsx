@@ -73,10 +73,16 @@ const Footer = () => {
           {/* Bagian Merek */}
           <div className="lg:col-span-1">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-crypto-blue rounded-lg flex items-center justify-center">
-                <CurrencyDollarIcon className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">OpenFund</span>
+              <img
+                src="/OpenFund - Blue Black.svg"
+                alt="OpenFund Logo"
+                className="w-10 h-10 object-contain"
+                style={{ maxWidth: '2.5rem', maxHeight: '2.5rem', borderRadius: '0.5rem' }}
+              />
+              <span className="text-xl font-bold">
+                <span className="text-crypto-blue">Open</span>
+                <span className="text-gray-900">Fund</span>
+              </span>
             </div>
             <p className="text-gray-600 text-sm mb-4">
               Platform crowdfunding terdesentralisasi yang dibangun di atas Base.
@@ -165,16 +171,16 @@ const Footer = () => {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-600 text-sm">
-              © {currentYear} OpenFund. V 1.1.5
+              © {currentYear} OpenFund. V 1.1.6
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <span className="text-xs text-gray-500">
-                Dibangun di Atas Jaringan Base
+                Dibangun di atas Base, solusi Layer 2 untuk Ethereum yang menawarkan biaya gas rendah dan transaksi cepat.
               </span>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 <span className="text-xs text-gray-500">
-                  Dukungan Layer 2 untuk Biaya Gas Rendah dan Transaksi Cepat
+                 {APP_CONSTANTS.NETWORK_NAME}
                 </span>
               </div>
             </div>

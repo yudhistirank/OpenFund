@@ -42,13 +42,13 @@
     "view_campaigns": "Lihat Kampanye",
 
     "stats_campaigns_funded": "Kampanye Didanai",
-    "stats_campaigns_funded_value": "1.200+",
+    "stats_campaigns_funded_value": "100+",
     "stats_total_volume": "Total Volume",
-    "stats_total_volume_value": "$2,5 Juta+",
+    "stats_total_volume_value": "$50.000+",
     "stats_success_rate": "Tingkat Keberhasilan",
-    "stats_success_rate_value": "94%",
+    "stats_success_rate_value": "96%",
     "stats_community_members": "Anggota Komunitas",
-    "stats_community_members_value": "15.000+",
+    "stats_community_members_value": "1.000+",
 
     "why_title": "Mengapa Memilih OpenFund?",
     "why_description": "Rasakan masa depan crowdfunding dengan teknologi blockchain",
@@ -284,7 +284,7 @@
     "connect_to_continue": "Silakan hubungkan wallet Anda untuk melanjutkan ke",
     "dashboard": "Dashboard",
     "this_page": "halaman ini",
-    "no_wallet_title": "💡 Belum punya wallet?",
+    "no_wallet_title": "Belum punya wallet?",
     "no_wallet_desc": "Unduh",
     "no_wallet_metamask": "MetaMask",
     "no_wallet_suffix": "atau wallet Web3 lainnya untuk mulai menggunakan OpenFund."

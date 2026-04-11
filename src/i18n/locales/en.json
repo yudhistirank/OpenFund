@@ -42,13 +42,13 @@
     "view_campaigns": "View Campaigns",
 
     "stats_campaigns_funded": "Campaigns Funded",
-    "stats_campaigns_funded_value": "1,200+",
+    "stats_campaigns_funded_value": "100+",
     "stats_total_volume": "Total Volume",
-    "stats_total_volume_value": "$2.5 Million+",
+    "stats_total_volume_value": "$50,000+",
     "stats_success_rate": "Success Rate",
-    "stats_success_rate_value": "94%",
+    "stats_success_rate_value": "96%",
     "stats_community_members": "Community Members",
-    "stats_community_members_value": "15,000+",
+    "stats_community_members_value": "1,000+",
 
     "why_title": "Why Choose OpenFund?",
     "why_description": "Experience the future of crowdfunding with blockchain technology",
@@ -284,7 +284,7 @@
     "connect_to_continue": "Please connect your wallet to continue to",
     "dashboard": "Dashboard",
     "this_page": "this page",
-    "no_wallet_title": "💡 Don't have a wallet?",
+    "no_wallet_title": "Don't have a wallet?",
     "no_wallet_desc": "Download",
     "no_wallet_metamask": "MetaMask",
     "no_wallet_suffix": "or another Web3 wallet to start using OpenFund."

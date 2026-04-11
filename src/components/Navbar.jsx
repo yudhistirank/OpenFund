@@ -47,10 +47,16 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-crypto-blue rounded-lg flex items-center justify-center">
-                <CurrencyDollarIcon className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">OpenFund</span>
+              <img
+                src="/OpenFund - Blue Black.svg"
+                alt="OpenFund Logo"
+                className="w-10 h-10 object-contain"
+                style={{ maxWidth: '2.5rem', maxHeight: '2.5rem' }}
+              />
+              <span className="text-xl font-bold">
+                <span className="text-crypto-blue">Open</span>
+                <span className="text-gray-900">Fund</span>
+              </span>
             </Link>
           </div>
 
