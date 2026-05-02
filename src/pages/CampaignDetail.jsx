@@ -37,7 +37,8 @@ import {
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 
 const CampaignDetail = () => {
-  const { id } = useParams();
+  const { network, id } = useParams();
+  const networkSlug = network === 'base' ? 'base' : 'eth';
   const navigate = useNavigate();
   const { account, isConnected, signer, chainId } = useWallet();
   const { 
@@ -49,7 +50,7 @@ const CampaignDetail = () => {
     getRefund,
     cancelCampaign,
     getCampaignDonors
-  } = useContract(signer, account);
+  } = useContract(signer, account, networkSlug);
   
   const { t } = useTranslation();
   const [campaign, setCampaign] = useState(null);

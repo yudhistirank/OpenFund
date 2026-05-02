@@ -161,6 +161,45 @@ export const getChainIdFromKey = (networkKey) => {
 };
 
 /**
+ * Get the network slug used in campaign routes
+ * @param {string} chainId - The blockchain chain ID
+ * @returns {string|null} - The network slug ('eth' or 'base')
+ */
+export const getNetworkSlugFromChainId = (chainId) => {
+  const slugMap = {
+    '84532': 'base',
+    '11155111': 'eth',
+    '8453': 'base',
+    '1': 'eth'
+  };
+  return slugMap[chainId] || null;
+};
+
+/**
+ * Get the chain ID from a route network slug
+ * @param {string} networkSlug - The network slug ('eth' or 'base')
+ * @returns {string|null} - The chain ID
+ */
+export const getChainIdFromNetworkSlug = (networkSlug) => {
+  const slugMap = {
+    eth: '11155111',
+    base: '84532'
+  };
+  return slugMap[networkSlug] || null;
+};
+
+/**
+ * Get the contract path for a campaign using network slug
+ * @param {string} networkSlug - The network slug ('eth' or 'base')
+ * @param {string|number} campaignId - The campaign ID
+ * @returns {string} - The campaign detail route
+ */
+export const getCampaignRoute = (networkSlug, campaignId) => {
+  const slug = networkSlug || 'eth';
+  return `/campaign/${slug}/${campaignId}`;
+};
+
+/**
  * Format network name for display
  * @param {string} chainId - The blockchain chain ID
  * @param {boolean} short - Whether to use short name

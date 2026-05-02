@@ -4,7 +4,7 @@ import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
 import { validateCampaignForm } from '../utils/validation';
 import { uploadToIPFS, uploadImageToIPFS, createCampaignMetadata } from '../utils/ipfs';
-import { getExplorerUrl } from '../utils/network';
+import { getExplorerUrl, getNetworkSlugFromChainId } from '../utils/network';
 import { useTranslation } from '../i18n';
 import TransactionStatus from '../components/TransactionStatus';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -21,7 +21,8 @@ const CreateCampaign = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { isConnected, chainId, signer, account } = useWallet();
-  const { createCampaign } = useContract(signer, account);
+  const networkSlug = getNetworkSlugFromChainId(chainId) || 'eth';
+  const { createCampaign } = useContract(signer, account, networkSlug);
 
   const [formData, setFormData] = useState({
     title: '',

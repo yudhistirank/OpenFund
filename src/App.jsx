@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Layout Components
@@ -18,6 +18,11 @@ import UserDashboard from './pages/UserDashboard';
 // Styles
 import './index.css';
 
+const RedirectToDefaultCampaign = () => {
+  const { id } = useParams();
+  return <Navigate replace to={`/campaign/eth/${id}`} />;
+};
+
 function App() {
   return (
     <Router>
@@ -31,7 +36,8 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/campaigns" element={<HomePage />} />
             <Route path="/create" element={<CreateCampaign />} />
-            <Route path="/campaign/:id" element={<CampaignDetail />} />
+            <Route path="/campaign/:network/:id" element={<CampaignDetail />} />
+            <Route path="/campaign/:id" element={<RedirectToDefaultCampaign />} />
             <Route path="/tx/:hash" element={<TransactionDetail />} />
             <Route
               path="/dashboard"

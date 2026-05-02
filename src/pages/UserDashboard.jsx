@@ -6,6 +6,7 @@ import { useContract } from '../hooks/useContract';
 import { CAMPAIGN_STATUS } from '../constants';
 import { useTranslation } from '../i18n';
 import { fetchFromIPFS } from '../utils/ipfs';
+import { getNetworkSlugFromChainId, getCampaignRoute } from '../utils/network';
 import {
   formatWeiToEth,
   formatDate,
@@ -54,14 +55,15 @@ const TX_TYPE_CONFIG = {
 
 const UserDashboard = () => {
   const { t } = useTranslation();
-  const { account, signer } = useWallet();
+  const { account, signer, chainId } = useWallet();
+  const networkSlug = getNetworkSlugFromChainId(chainId) || 'eth';
   const {
     campaigns,
     userCampaigns,
     userContributions,
     isLoading,
     getUserTransactionHistory,
-  } = useContract(signer, account);
+  } = useContract(signer, account, networkSlug);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [txHistory, setTxHistory] = useState([]);
@@ -216,7 +218,7 @@ const UserDashboard = () => {
                       </div>
                       <div className="flex items-center space-x-3">
                         {getStatusBadge(campaign)}
-                        <Link to={`/campaign/${campaign.id}`} className="text-xs text-crypto-blue">{t('common.view')}</Link>
+                        <Link to={getCampaignRoute(networkSlug, campaign.id)} className="text-xs text-crypto-blue">{t('common.view')}</Link>
                       </div>
                     </div>
                   ))}
@@ -259,7 +261,7 @@ const UserDashboard = () => {
                         <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                           <div className={`h-2 rounded-full ${pct >= 100 ? 'bg-green-500' : 'bg-crypto-blue'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
-                        <Link to={`/campaign/${campaign.id}`} className="btn-primary text-sm">{t('dashboard.view_campaign')}</Link>
+                        <Link to={getCampaignRoute(networkSlug, campaign.id)} className="btn-primary text-sm">{t('dashboard.view_campaign')}</Link>
                       </div>
                     );
                   })}
@@ -297,7 +299,7 @@ const UserDashboard = () => {
                           {getStatusBadge(campaign)}
                         </div>
                       </div>
-                      <Link to={`/campaign/${campaign.id}`} className="btn-secondary text-sm">{t('dashboard.view_campaign')}</Link>
+                      <Link to={getCampaignRoute(networkSlug, campaign.id)} className="btn-secondary text-sm">{t('dashboard.view_campaign')}</Link>
                     </div>
                   ))}
                 </div>

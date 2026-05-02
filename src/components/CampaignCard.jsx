@@ -17,6 +17,7 @@ import { CAMPAIGN_STATUS } from '../constants';
 import { fetchFromIPFS } from '../utils/ipfs';
 import { useTranslation } from '../i18n';
 import { useWallet } from '../hooks/useWallet';
+import { getNetworkSlugFromChainId, getCampaignRoute } from '../utils/network';
 import useCurrentTime from '../hooks/useCurrentTime';
 import { 
   ClockIcon,
@@ -31,10 +32,12 @@ import {
 const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
   const now = useCurrentTime();
   const { t } = useTranslation();
-  const { isConnected, connectWallet } = useWallet();
+  const { isConnected, connectWallet, chainId } = useWallet();
   const navigate = useNavigate();
   const [metadata, setMetadata] = useState(null);
   const [loadingMetadata, setLoadingMetadata] = useState(false);
+  const networkSlug = getNetworkSlugFromChainId(chainId) || 'eth';
+  const campaignPath = getCampaignRoute(networkSlug, campaign.id);
   
   // Fetch metadata from IPFS
   useEffect(() => {
@@ -112,7 +115,7 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
       // Trigger wallet connection - if successful, navigate to detail
       const connected = await connectWallet();
       if (connected) {
-        navigate(`/campaign/${campaign.id}`);
+        navigate(campaignPath);
       }
     }
     // If connected, Link component handles navigation normally
@@ -211,7 +214,7 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
       {/* Action Buttons */}
       <div className="flex space-x-2">
         <Link
-          to={`/campaign/${campaign.id}`}
+          to={campaignPath}
           onClick={handleViewDetail}
           className="flex-1 btn-primary text-center text-sm flex items-center justify-center gap-1"
         >
@@ -221,7 +224,7 @@ const CampaignCard = ({ campaign, userPledge = '0', showCreator = true }) => {
         
         {isConnected && userPledgeAmount > 0 && !isCancelled && (
           <Link
-            to={`/campaign/${campaign.id}`}
+            to={campaignPath}
             className="px-4 py-2 text-sm border border-crypto-blue text-crypto-blue rounded-lg hover:bg-crypto-light-blue transition-colors"
           >
             {t('campaign.manage')}

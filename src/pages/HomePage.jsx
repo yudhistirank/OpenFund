@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import { useContract } from '../hooks/useContract';
 import { CAMPAIGN_STATUS } from '../constants';
 import { getCampaignStatusLocal } from '../utils/validation';
 import { useTranslation } from '../i18n';
+import { getNetworkSlugFromChainId } from '../utils/network';
 import CampaignCard from '../components/CampaignCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
@@ -15,18 +16,24 @@ import {
 
 const HomePage = () => {
   const { t } = useTranslation();
-  const { signer, account, isConnected } = useWallet();
+  const { signer, account, isConnected, chainId } = useWallet();
+  const networkSlug = getNetworkSlugFromChainId(chainId) || 'eth';
   // useContract now works without wallet (read-only mode via public RPC)
   const { 
     campaigns,
     userContributions,
     isLoading,
     fetchCampaigns
-  } = useContract(signer, account);
+  } = useContract(signer, account, networkSlug);
   
   const handleRefresh = useCallback(async () => {
     await fetchCampaigns();
   }, [fetchCampaigns]);
+  
+  // Load campaigns when component mounts or network changes
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns, networkSlug]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest');

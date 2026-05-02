@@ -477,10 +477,10 @@ export const CAMPAIGN_STATUS_LABELS = {
   [CAMPAIGN_STATUS.CLAIMED]: 'Dicairkan',
 };
 
-// Contract addresses (update these with actual deployed addresses)
+// Contract addresses
 export const CONTRACT_ADDRESSES = {
   // Base Sepolia testnet
-  base_sepolia: "0xB46A2a4a569cf16EF7A1e92ea5eCEDe7ACFF374D",
+  base_sepolia: "0xC16FAA27C5278853aD90e52621EbE3FD7A2F2840",
   // Ethereum Sepolia testnet
   ethereum_sepolia: "0xDE02F7A53d72389cA93CB0c3EA841b5B3A60685E",
 };

@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { CROWD_FUND_ABI, CONTRACT_ADDRESSES, APP_CONSTANTS, CAMPAIGN_STATUS } from '../constants';
 import { fetchFromIPFS } from '../utils/ipfs';
 import { getCampaignStatusLocal } from '../utils/validation';
+import { getChainIdFromNetworkSlug } from '../utils/network';
 
 // Public RPC endpoints for read-only access (no wallet needed)
 const PUBLIC_RPC = {
@@ -10,10 +11,19 @@ const PUBLIC_RPC = {
   base_sepolia: 'https://sepolia.base.org',
 };
 
-// Default network for read-only mode
-const DEFAULT_READ_ONLY_NETWORK = 'ethereum_sepolia';
+const NETWORK_RPC = {
+  eth: PUBLIC_RPC.ethereum_sepolia,
+  base: PUBLIC_RPC.base_sepolia,
+};
 
-export const useContract = (signer, account) => {
+const NETWORK_CONTRACT_ADDRESS = {
+  eth: CONTRACT_ADDRESSES.ethereum_sepolia,
+  base: CONTRACT_ADDRESSES.base_sepolia,
+};
+
+const DEFAULT_NETWORK_SLUG = 'eth';
+
+export const useContract = (signer, account, networkSlug = DEFAULT_NETWORK_SLUG) => {
   const [contract, setContract] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [userCampaigns, setUserCampaigns] = useState([]);
@@ -24,64 +34,63 @@ export const useContract = (signer, account) => {
 
   // Initialize contract - supports both read-only (no wallet) and write (with wallet) modes
   useEffect(() => {
-    // If signer is available, use it for full read/write access
+    const resolvedNetworkSlug = networkSlug === 'base' ? 'base' : 'eth';
+    const desiredChainId = getChainIdFromNetworkSlug(resolvedNetworkSlug) || '11155111';
+    const contractAddress = NETWORK_CONTRACT_ADDRESS[resolvedNetworkSlug];
+    const rpcUrl = NETWORK_RPC[resolvedNetworkSlug];
+
+    const initializeReadOnlyContract = () => {
+      try {
+        setIsReadOnly(true);
+        const readOnlyProvider = new ethers.JsonRpcProvider(rpcUrl);
+        const readOnlyContract = new ethers.Contract(
+          contractAddress,
+          CROWD_FUND_ABI,
+          readOnlyProvider
+        );
+
+        console.log('Initializing contract (read-only mode) Address:', contractAddress, 'Network:', resolvedNetworkSlug);
+        setContract(readOnlyContract);
+      } catch (err) {
+        console.error('Error initializing read-only contract:', err);
+      }
+    };
+
     if (signer && account) {
-      setIsReadOnly(false);
       try {
         const provider = signer.provider;
         provider.getNetwork().then((network) => {
           const chainId = network.chainId.toString();
           console.log('🔍 NETWORK DEBUG: Detected chain ID:', chainId);
-          
-          let contractAddress = CONTRACT_ADDRESSES.base_sepolia;
-          
-          if (chainId === '11155111') {
-            contractAddress = CONTRACT_ADDRESSES.ethereum_sepolia;
-          } else if (chainId === '84532') {
-            contractAddress = CONTRACT_ADDRESSES.base_sepolia;
+
+          if (chainId === desiredChainId) {
+            console.log('Initializing contract (write mode) on chain:', chainId, 'Address:', contractAddress);
+            const crowdFundContract = new ethers.Contract(
+              contractAddress,
+              CROWD_FUND_ABI,
+              signer
+            );
+            setIsReadOnly(false);
+            setContract(crowdFundContract);
+          } else {
+            console.log('Wallet chain mismatch for route network:', resolvedNetworkSlug, 'expected chainId:', desiredChainId, 'but wallet is on:', chainId, 'Using read-only provider instead.');
+            initializeReadOnlyContract();
           }
-          
-          console.log('Initializing contract (write mode) on chain:', chainId, 'Address:', contractAddress);
-          
-          const crowdFundContract = new ethers.Contract(
-            contractAddress,
-            CROWD_FUND_ABI,
-            signer
-          );
-          
-          setContract(crowdFundContract);
         }).catch((err) => {
           console.error('Error getting network:', err);
           setError('Failed to get network information');
+          initializeReadOnlyContract();
         });
       } catch (err) {
         console.error('Error initializing contract:', err);
         setError('Failed to initialize contract');
+        initializeReadOnlyContract();
       }
       return;
     }
 
-    // No wallet connected — use read-only provider for public browsing
-    try {
-      setIsReadOnly(true);
-      const rpcUrl = PUBLIC_RPC[DEFAULT_READ_ONLY_NETWORK];
-      const readOnlyProvider = new ethers.JsonRpcProvider(rpcUrl);
-      const contractAddress = CONTRACT_ADDRESSES[DEFAULT_READ_ONLY_NETWORK];
-      
-      console.log('Initializing contract (read-only mode) Address:', contractAddress);
-      
-      const readOnlyContract = new ethers.Contract(
-        contractAddress,
-        CROWD_FUND_ABI,
-        readOnlyProvider
-      );
-      
-      setContract(readOnlyContract);
-    } catch (err) {
-      console.error('Error initializing read-only contract:', err);
-      // Don't set error for read-only failures — user might just not have wallet
-    }
-  }, [signer, account]);
+    initializeReadOnlyContract();
+  }, [signer, account, networkSlug]);
 
   // Format raw campaign data from contract to frontend-friendly object
   const formatCampaign = (campaign, id) => {
@@ -440,9 +449,67 @@ export const useContract = (signer, account) => {
     if (!contract || !campaignId) return [];
 
     try {
+      console.log('getCampaignDonors: Starting for campaign', campaignId);
+      
+      const providerNetwork = await contract.runner.provider.getNetwork();
+      const isBaseSepolia = providerNetwork.chainId.toString() === '84532';
+      
+      if (isBaseSepolia) {
+        try {
+          console.log('Fetching donors from Base Sepolia Blockscout Explorer API...');
+          const contractAddress = contract.target || contract.address;
+          const apiUrl = `https://base-sepolia.blockscout.com/api?module=logs&action=getLogs&address=${contractAddress}&fromBlock=0&toBlock=latest`;
+          const response = await fetch(apiUrl);
+          const data = await response.json();
+          
+          if (data.status === '1' && Array.isArray(data.result)) {
+            const donations = [];
+            for (const log of data.result) {
+              try {
+                const parsedLog = contract.interface.parseLog({ topics: log.topics, data: log.data });
+                if (parsedLog && parsedLog.name === 'FundCampaign' && parsedLog.args.id.toString() === campaignId.toString()) {
+                  donations.push({
+                    address: parsedLog.args.caller,
+                    amount: parsedLog.args.amount.toString(),
+                    txHash: log.transactionHash,
+                    blockNumber: parseInt(log.blockNumber, 16) || 0,
+                  });
+                }
+              } catch (e) {}
+            }
+            donations.sort((a, b) => {
+              const diff = BigInt(b.amount) - BigInt(a.amount);
+              return diff > 0n ? 1 : diff < 0n ? -1 : 0;
+            });
+            return donations;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch from explorer API, falling back to RPC:', err);
+        }
+      }
+
+      // Get current block number for safer event querying
+      let currentBlock;
+      try {
+        currentBlock = await contract.runner.provider.getBlockNumber();
+      } catch (err) {
+        console.warn('getCampaignDonors: Could not get block number, using "latest"', err);
+        currentBlock = 'latest';
+      }
+
       // Query FundCampaign events filtered by campaign ID (indexed)
+      // Use a safe range: last 1,000,000 blocks or from block 0
+      let fromBlock = 0;
+      if (typeof currentBlock === 'number' && currentBlock > 1000000) {
+        fromBlock = currentBlock - 1000000;
+      }
+      
+      console.log('getCampaignDonors: Querying events from block', fromBlock, 'to', currentBlock);
+      
       const filter = contract.filters.FundCampaign(campaignId);
-      const events = await contract.queryFilter(filter, 0, 'latest');
+      const events = await contract.queryFilter(filter, fromBlock, currentBlock);
+
+      console.log('getCampaignDonors: Found', events.length, 'donation events');
 
       // Return individual donation events (not aggregated)
       const donations = events.map((event) => ({
@@ -460,7 +527,7 @@ export const useContract = (signer, account) => {
 
       return donations;
     } catch (err) {
-      console.error('Error fetching campaign donors:', err);
+      console.error('getCampaignDonors: Error fetching campaign donors:', err);
       return [];
     }
   }, [contract]);
@@ -474,107 +541,210 @@ export const useContract = (signer, account) => {
     if (!contract || !account) return [];
 
     try {
+      console.log('getUserTransactionHistory: Starting for account', account);
+      
+      const providerNetwork = await contract.runner.provider.getNetwork();
+      const isBaseSepolia = providerNetwork.chainId.toString() === '84532';
+      
+      if (isBaseSepolia) {
+        try {
+          console.log('Fetching user tx history from Base Sepolia Blockscout Explorer API...');
+          const contractAddress = contract.target || contract.address;
+          const apiUrl = `https://base-sepolia.blockscout.com/api?module=logs&action=getLogs&address=${contractAddress}&fromBlock=0&toBlock=latest`;
+          const response = await fetch(apiUrl);
+          const data = await response.json();
+          
+          if (data.status === '1' && Array.isArray(data.result)) {
+            const allEvents = [];
+            for (const log of data.result) {
+              try {
+                const parsedLog = contract.interface.parseLog({ topics: log.topics, data: log.data });
+                if (!parsedLog) continue;
+                
+                const eventName = parsedLog.name;
+                const txHash = log.transactionHash;
+                const blockNumber = parseInt(log.blockNumber, 16) || 0;
+                
+                if (eventName === 'FundCampaign' && parsedLog.args.caller.toLowerCase() === account.toLowerCase()) {
+                  allEvents.push({ type: 'fund', campaignId: parsedLog.args.id.toString(), amount: parsedLog.args.amount.toString(), txHash, blockNumber });
+                } else if (eventName === 'WithdrawPledge' && parsedLog.args.caller.toLowerCase() === account.toLowerCase()) {
+                  allEvents.push({ type: 'withdraw', campaignId: parsedLog.args.id.toString(), amount: parsedLog.args.amount.toString(), txHash, blockNumber });
+                } else if (eventName === 'RefundContribution' && parsedLog.args.caller.toLowerCase() === account.toLowerCase()) {
+                  allEvents.push({ type: 'refund', campaignId: parsedLog.args.id.toString(), amount: parsedLog.args.amount.toString(), txHash, blockNumber });
+                } else if (eventName === 'CreateCampaign' && parsedLog.args.creator.toLowerCase() === account.toLowerCase()) {
+                  allEvents.push({ type: 'create', campaignId: parsedLog.args.id.toString(), amount: parsedLog.args.goal.toString(), txHash, blockNumber });
+                } else if (eventName === 'ClaimFunds' || eventName === 'CancelCampaign') {
+                  try {
+                    const campaign = await contract.campaigns(parsedLog.args.id);
+                    if (campaign.creator.toLowerCase() === account.toLowerCase()) {
+                      allEvents.push({
+                        type: eventName === 'ClaimFunds' ? 'claim' : 'cancel',
+                        campaignId: parsedLog.args.id.toString(),
+                        amount: eventName === 'ClaimFunds' ? parsedLog.args.amount.toString() : '0',
+                        txHash,
+                        blockNumber
+                      });
+                    }
+                  } catch (e) {}
+                }
+              } catch (e) {}
+            }
+            allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
+            return allEvents;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch from explorer API, falling back to RPC:', err);
+        }
+      }
+      
+      // Get safe block range for event querying
+      let currentBlock;
+      let fromBlock = 0;
+      try {
+        currentBlock = await contract.runner.provider.getBlockNumber();
+        if (typeof currentBlock === 'number' && currentBlock > 1000000) {
+          fromBlock = currentBlock - 1000000;
+        }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Could not get block number', err);
+        currentBlock = 'latest';
+      }
+      
+      console.log('getUserTransactionHistory: Querying events from block', fromBlock, 'to', currentBlock);
+
       const allEvents = [];
 
       // FundCampaign events (user = caller) — donations made
-      const fundFilter = contract.filters.FundCampaign(null, account);
-      const fundEvents = await contract.queryFilter(fundFilter, 0, 'latest');
-      for (const e of fundEvents) {
-        allEvents.push({
-          type: 'fund',
-          campaignId: e.args.id.toString(),
-          amount: e.args.amount.toString(),
-          txHash: e.transactionHash,
-          blockNumber: e.blockNumber,
-        });
+      try {
+        const fundFilter = contract.filters.FundCampaign(null, account);
+        const fundEvents = await contract.queryFilter(fundFilter, fromBlock, currentBlock);
+        console.log('getUserTransactionHistory: Found', fundEvents.length, 'FundCampaign events');
+        for (const e of fundEvents) {
+          allEvents.push({
+            type: 'fund',
+            campaignId: e.args.id.toString(),
+            amount: e.args.amount.toString(),
+            txHash: e.transactionHash,
+            blockNumber: e.blockNumber,
+          });
+        }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Error querying FundCampaign events:', err);
       }
 
       // WithdrawPledge events (user = caller) — withdrawals
-      const withdrawFilter = contract.filters.WithdrawPledge(null, account);
-      const withdrawEvents = await contract.queryFilter(withdrawFilter, 0, 'latest');
-      for (const e of withdrawEvents) {
-        allEvents.push({
-          type: 'withdraw',
-          campaignId: e.args.id.toString(),
-          amount: e.args.amount.toString(),
-          txHash: e.transactionHash,
-          blockNumber: e.blockNumber,
-        });
+      try {
+        const withdrawFilter = contract.filters.WithdrawPledge(null, account);
+        const withdrawEvents = await contract.queryFilter(withdrawFilter, fromBlock, currentBlock);
+        console.log('getUserTransactionHistory: Found', withdrawEvents.length, 'WithdrawPledge events');
+        for (const e of withdrawEvents) {
+          allEvents.push({
+            type: 'withdraw',
+            campaignId: e.args.id.toString(),
+            amount: e.args.amount.toString(),
+            txHash: e.transactionHash,
+            blockNumber: e.blockNumber,
+          });
+        }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Error querying WithdrawPledge events:', err);
       }
 
       // RefundContribution events (user = caller) — refunds received
-      const refundFilter = contract.filters.RefundContribution(null, account);
-      const refundEvents = await contract.queryFilter(refundFilter, 0, 'latest');
-      for (const e of refundEvents) {
-        allEvents.push({
-          type: 'refund',
-          campaignId: e.args.id.toString(),
-          amount: e.args.amount.toString(),
-          txHash: e.transactionHash,
-          blockNumber: e.blockNumber,
-        });
+      try {
+        const refundFilter = contract.filters.RefundContribution(null, account);
+        const refundEvents = await contract.queryFilter(refundFilter, fromBlock, currentBlock);
+        console.log('getUserTransactionHistory: Found', refundEvents.length, 'RefundContribution events');
+        for (const e of refundEvents) {
+          allEvents.push({
+            type: 'refund',
+            campaignId: e.args.id.toString(),
+            amount: e.args.amount.toString(),
+            txHash: e.transactionHash,
+            blockNumber: e.blockNumber,
+          });
+        }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Error querying RefundContribution events:', err);
       }
 
       // ClaimFunds events — check if user is creator who claimed
-      const claimFilter = contract.filters.ClaimFunds();
-      const claimEvents = await contract.queryFilter(claimFilter, 0, 'latest');
-      for (const e of claimEvents) {
-        // Check if the campaign creator is the current user
-        try {
-          const campaign = await contract.campaigns(e.args.id);
-          if (campaign.creator.toLowerCase() === account.toLowerCase()) {
-            allEvents.push({
-              type: 'claim',
-              campaignId: e.args.id.toString(),
-              amount: e.args.amount.toString(),
-              txHash: e.transactionHash,
-              blockNumber: e.blockNumber,
-            });
+      try {
+        const claimFilter = contract.filters.ClaimFunds();
+        const claimEvents = await contract.queryFilter(claimFilter, fromBlock, currentBlock);
+        console.log('getUserTransactionHistory: Found', claimEvents.length, 'ClaimFunds events');
+        for (const e of claimEvents) {
+          // Check if the campaign creator is the current user
+          try {
+            const campaign = await contract.campaigns(e.args.id);
+            if (campaign.creator.toLowerCase() === account.toLowerCase()) {
+              allEvents.push({
+                type: 'claim',
+                campaignId: e.args.id.toString(),
+                amount: e.args.amount.toString(),
+                txHash: e.transactionHash,
+                blockNumber: e.blockNumber,
+              });
+            }
+          } catch {
+            // skip if campaign lookup fails
           }
-        } catch {
-          // skip if campaign lookup fails
         }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Error querying ClaimFunds events:', err);
       }
 
       // CreateCampaign events (user = creator)
-      const createFilter = contract.filters.CreateCampaign(null, account);
-      const createEvents = await contract.queryFilter(createFilter, 0, 'latest');
-      for (const e of createEvents) {
-        allEvents.push({
-          type: 'create',
-          campaignId: e.args.id.toString(),
-          amount: e.args.goal.toString(),
-          txHash: e.transactionHash,
-          blockNumber: e.blockNumber,
-        });
+      try {
+        const createFilter = contract.filters.CreateCampaign(null, account);
+        const createEvents = await contract.queryFilter(createFilter, fromBlock, currentBlock);
+        console.log('getUserTransactionHistory: Found', createEvents.length, 'CreateCampaign events');
+        for (const e of createEvents) {
+          allEvents.push({
+            type: 'create',
+            campaignId: e.args.id.toString(),
+            amount: e.args.goal.toString(),
+            txHash: e.transactionHash,
+            blockNumber: e.blockNumber,
+          });
+        }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Error querying CreateCampaign events:', err);
       }
 
       // CancelCampaign events
-      const cancelFilter = contract.filters.CancelCampaign();
-      const cancelEvents = await contract.queryFilter(cancelFilter, 0, 'latest');
-      for (const e of cancelEvents) {
-        try {
-          const campaign = await contract.campaigns(e.args.id);
-          if (campaign.creator.toLowerCase() === account.toLowerCase()) {
-            allEvents.push({
-              type: 'cancel',
-              campaignId: e.args.id.toString(),
-              amount: '0',
-              txHash: e.transactionHash,
-              blockNumber: e.blockNumber,
-            });
+      try {
+        const cancelFilter = contract.filters.CancelCampaign();
+        const cancelEvents = await contract.queryFilter(cancelFilter, fromBlock, currentBlock);
+        console.log('getUserTransactionHistory: Found', cancelEvents.length, 'CancelCampaign events');
+        for (const e of cancelEvents) {
+          try {
+            const campaign = await contract.campaigns(e.args.id);
+            if (campaign.creator.toLowerCase() === account.toLowerCase()) {
+              allEvents.push({
+                type: 'cancel',
+                campaignId: e.args.id.toString(),
+                amount: '0',
+                txHash: e.transactionHash,
+                blockNumber: e.blockNumber,
+              });
+            }
+          } catch {
+            // skip
           }
-        } catch {
-          // skip
         }
+      } catch (err) {
+        console.warn('getUserTransactionHistory: Error querying CancelCampaign events:', err);
       }
 
       // Sort by block number descending (newest first)
       allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
+      
+      console.log('getUserTransactionHistory: Total events collected:', allEvents.length);
 
       return allEvents;
     } catch (err) {
-      console.error('Error fetching user transaction history:', err);
+      console.error('getUserTransactionHistory: Error fetching user transaction history:', err);
       return [];
     }
   }, [contract, account]);
