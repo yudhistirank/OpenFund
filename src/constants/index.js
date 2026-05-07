@@ -485,6 +485,21 @@ export const CONTRACT_ADDRESSES = {
   ethereum_sepolia: "0xDE02F7A53d72389cA93CB0c3EA841b5B3A60685E",
 };
 
+// Contract deployment block numbers — verified from block explorers
+// Base Sepolia: https://sepolia.basescan.org/address/0xC16FAA27C5278853aD90e52621EbE3FD7A2F2840
+// Eth Sepolia:  https://sepolia.etherscan.io/address/0xDE02F7A53d72389cA93CB0c3EA841b5B3A60685E
+export const CONTRACT_DEPLOY_BLOCKS = {
+  '84532':    40357097,  // Base Sepolia — actual deployment block
+  '11155111': 10462385,  // Ethereum Sepolia — actual deployment block
+};
+
+// Maximum blocks per eth_getLogs call for each network's public RPC
+export const RPC_CHUNK_SIZES = {
+  '84532':    1500,   // https://sepolia.base.org — strict ~2000 block limit
+  '11155111': 50000,  // https://ethereum-sepolia-rpc.publicnode.com — permissive
+  default:    2000,
+};
+
 // Network configurations
 export const NETWORKS = {
   ethereum_sepolia: {
